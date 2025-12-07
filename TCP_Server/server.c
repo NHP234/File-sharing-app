@@ -19,12 +19,29 @@
 #define BUFF_SIZE 4096
 #define MAX_ACCOUNTS 100
 #define MAX_USERNAME 50
+#define MAX_GROUPS 50
+#define MAX_GROUP_NAME 50
+#define MAX_JOIN_REQUESTS 100
 #define BACKLOG 20
+
+/* Group structure */
+typedef struct {
+    int group_id;
+    char group_name[MAX_GROUP_NAME];
+    char leader[MAX_USERNAME];
+    int active; /* 1: active, 0: deleted */
+} group_t;
+
+/* Join Request structure */
+typedef struct {
+    char username[MAX_USERNAME];
+    int group_id;
+} join_request_t;
 
 /* Account structure */
 typedef struct {
     char username[MAX_USERNAME];
-    int status; /* 0: blocked, 1: active */
+    char password[MAX_USERNAME];
     int logged_in; /* 0: not logged in, 1: logged in */
     int group_id;
 } account_t;
@@ -43,11 +60,24 @@ typedef struct {
 /* Global variables */
 account_t accounts[MAX_ACCOUNTS];
 int account_count = 0;
+group_t groups[MAX_GROUPS];
+int group_count = 0;
+join_request_t join_requests[MAX_JOIN_REQUESTS];
+int join_request_count = 0;
 pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t group_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Function prototypes */
 void load_accounts();
+void load_groups();
+int save_account(const char *username, const char *password);
+int save_groups();
+int find_group_by_name(const char *group_name);
+int find_group_by_id(int group_id);
+int add_join_request(const char *username, int group_id);
+int remove_join_request(const char *username, int group_id);
+int check_join_request_exists(const char *username, int group_id);
 int tcp_send(int sockfd, char *msg);
 int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len);
 void *handle_client(void *arg);
@@ -122,8 +152,8 @@ void load_accounts() {
     }
     
     account_count = 0;
-    while (fscanf(f, "%s %d %d", accounts[account_count].username, 
-                  &accounts[account_count].status, &accounts[account_count].group_id) == 3) {
+    while (fscanf(f, "%s %s %d", accounts[account_count].username, 
+                  accounts[account_count].password, &accounts[account_count].group_id) == 3) {
         accounts[account_count].logged_in = 0;
         account_count++;
         if (account_count >= MAX_ACCOUNTS) break;
@@ -131,6 +161,155 @@ void load_accounts() {
     
     fclose(f);
     printf("Loaded %d accounts\n", account_count);
+}
+
+/**
+ * @function save_account: Save new account to file and add to memory
+ * @param username: Username of the new account
+ * @param password: Password of the new account
+ * @return: 0 on success, -1 on error
+ **/
+int save_account(const char *username, const char *password) {
+    FILE *f = fopen("TCP_Server/account.txt", "a");
+    if (f == NULL) {
+        perror("Cannot open account.txt for writing");
+        return -1;
+    }
+    
+    // Ghi vào file: <username> <password> <group_id>
+    // Mặc định group_id = -1 (chưa tham gia nhóm nào)
+    fprintf(f, "%s %s -1\n", username, password);
+    fclose(f);
+    
+    // Thêm vào memory
+    if (account_count < MAX_ACCOUNTS) {
+        strcpy(accounts[account_count].username, username);
+        strcpy(accounts[account_count].password, password);
+        accounts[account_count].logged_in = 0;
+        accounts[account_count].group_id = -1;
+        account_count++;
+    }
+    
+    return 0;
+}
+
+/**
+ * @function load_groups: Load groups from file into memory
+ **/
+void load_groups() {
+    FILE *f = fopen("TCP_Server/groups.txt", "r");
+    if (f == NULL) {
+        // File không tồn tại là bình thường, tạo mới
+        printf("No groups file found, starting fresh\n");
+        return;
+    }
+    
+    group_count = 0;
+    while (fscanf(f, "%d %s %s %d", &groups[group_count].group_id,
+                  groups[group_count].group_name,
+                  groups[group_count].leader,
+                  &groups[group_count].active) == 4) {
+        group_count++;
+        if (group_count >= MAX_GROUPS) break;
+    }
+    
+    fclose(f);
+    printf("Loaded %d groups\n", group_count);
+}
+
+/**
+ * @function find_group_by_name: Find group index by name
+ * @return: group index if found, -1 otherwise
+ **/
+int find_group_by_name(const char *group_name) {
+    for (int i = 0; i < group_count; i++) {
+        if (groups[i].active && strcmp(groups[i].group_name, group_name) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @function find_group_by_id: Find group index by id
+ * @return: group index if found, -1 otherwise
+ **/
+int find_group_by_id(int group_id) {
+    for (int i = 0; i < group_count; i++) {
+        if (groups[i].active && groups[i].group_id == group_id) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @function add_join_request: Add a join request
+ * @return: 0 on success, -1 on error
+ **/
+int add_join_request(const char *username, int group_id) {
+    if (join_request_count >= MAX_JOIN_REQUESTS) {
+        return -1;
+    }
+    strcpy(join_requests[join_request_count].username, username);
+    join_requests[join_request_count].group_id = group_id;
+    join_request_count++;
+    return 0;
+}
+
+/**
+ * @function remove_join_request: Remove a join request
+ * @return: 0 on success, -1 if not found
+ **/
+int remove_join_request(const char *username, int group_id) {
+    for (int i = 0; i < join_request_count; i++) {
+        if (strcmp(join_requests[i].username, username) == 0 &&
+            join_requests[i].group_id == group_id) {
+            // Shift remaining requests
+            for (int j = i; j < join_request_count - 1; j++) {
+                join_requests[j] = join_requests[j + 1];
+            }
+            join_request_count--;
+            return 0;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @function save_groups: Save groups to file
+ * @return: 0 on success, -1 on error
+ **/
+int save_groups() {
+    FILE *f = fopen("TCP_Server/groups.txt", "w");
+    if (f == NULL) {
+        return -1;
+    }
+    
+    for (int i = 0; i < group_count; i++) {
+        fprintf(f, "%d %s %s %d\n", 
+                groups[i].group_id,
+                groups[i].group_name,
+                groups[i].leader,
+                groups[i].active);
+    }
+    
+    fclose(f);
+    return 0;
+}
+
+/**
+ * @function check_join_request_exists: Check if join request exists
+ * @return: 1 if exists, 0 otherwise
+ **/
+int check_join_request_exists(const char *username, int group_id) {
+    for (int i = 0; i < join_request_count; i++) {
+        if (strcmp(join_requests[i].username, username) == 0 &&
+            join_requests[i].group_id == group_id) {
+            return 1;
+        }
+    }
+    return 0;
 }
 
 /**
@@ -336,18 +515,19 @@ void process_command(conn_state_t *state, char *command) {
         return;
     }
     
-    /* Handle USER command */
-    if (strcmp(cmd, "USER") == 0) {
+    /* Handle LOGIN command */
+    if (strcmp(cmd, "LOGIN") == 0) {
         /* Check if already logged in */
         if (state->is_logged_in) {
-            tcp_send(state->sockfd, "213");
+            tcp_send(state->sockfd, "403");
+            write_log(state->client_addr, command, "-ERR Already logged in");
             return;
         }
         
-        /* Try to parse username */
-        if (sscanf(command, "USER %s", arg) != 1) {
-            /* USER command without username -> account not exist */
-            tcp_send(state->sockfd, "212");
+        /* Parse username and password */
+        char username[MAX_USERNAME], password[MAX_USERNAME];
+        if (sscanf(command, "LOGIN %s %s", username, password) != 2) {
+            tcp_send(state->sockfd, "300"); // Sai cú pháp
             return;
         }
         
@@ -355,7 +535,7 @@ void process_command(conn_state_t *state, char *command) {
         pthread_mutex_lock(&account_mutex);
         int found = -1;
         for (i = 0; i < account_count; i++) {
-            if (strcmp(accounts[i].username, arg) == 0) {
+            if (strcmp(accounts[i].username, username) == 0) {
                 found = i;
                 break;
             }
@@ -363,55 +543,300 @@ void process_command(conn_state_t *state, char *command) {
         
         if (found == -1) {
             pthread_mutex_unlock(&account_mutex);
-            tcp_send(state->sockfd, "212");
+            tcp_send(state->sockfd, "402"); // Tài khoản không tồn tại
+            write_log(state->client_addr, command, "-ERR Account does not exist");
             return;
         }
         
-        if (accounts[found].status == 0) {
+        /* Check password */
+        if (strcmp(accounts[found].password, password) != 0) {
             pthread_mutex_unlock(&account_mutex);
-            tcp_send(state->sockfd, "211");
+            tcp_send(state->sockfd, "401"); // Sai mật khẩu
+            write_log(state->client_addr, command, "-ERR Wrong password");
             return;
         }
         
         if (accounts[found].logged_in == 1) {
             pthread_mutex_unlock(&account_mutex);
-            tcp_send(state->sockfd, "214");
+            tcp_send(state->sockfd, "403"); // Đã đăng nhập trước đó
+            write_log(state->client_addr, command, "-ERR Already logged in elsewhere");
             return;
         }
         
         /* Login successful */
         accounts[found].logged_in = 1;
-        strcpy(state->logged_user, arg);
+        strcpy(state->logged_user, username);
         state->is_logged_in = 1;
         state->current_group_id = accounts[found].group_id;
         pthread_mutex_unlock(&account_mutex);
         
         tcp_send(state->sockfd, "110");
         write_log(state->client_addr, command, "+OK Login successful");
-        printf("User %s logged in\n", arg);
+        printf("User %s logged in\n", username);
     }
-    /* Handle POST command */
-    else if (strcmp(cmd, "POST") == 0) {
-        if (!state->is_logged_in) {
-            tcp_send(state->sockfd, "221");
+    /* Handle REGISTER command */
+    else if (strcmp(cmd, "REGISTER") == 0) {
+        /* Check if already logged in */
+        if (state->is_logged_in) {
+            tcp_send(state->sockfd, "403"); // Phiên đã được đăng nhập
+            write_log(state->client_addr, command, "-ERR Already logged in");
             return;
         }
         
-        /* Extract article content (after "POST ") */
-        char *article = command + 5;
-        if (strlen(article) == 0) {
-            tcp_send(state->sockfd, "300");
+        /* Parse username and password */
+        char username[MAX_USERNAME], password[MAX_USERNAME];
+        if (sscanf(command, "REGISTER %s %s", username, password) != 2) {
+            tcp_send(state->sockfd, "300"); // Sai cú pháp
             return;
         }
         
-        printf("User %s posted: %s\n", state->logged_user, article);
-        tcp_send(state->sockfd, "120");
-        write_log(state->client_addr, command, "+OK Article posted");
+        /* Check if username already exists */
+        pthread_mutex_lock(&account_mutex);
+        int exists = 0;
+        for (i = 0; i < account_count; i++) {
+            if (strcmp(accounts[i].username, username) == 0) {
+                exists = 1;
+                break;
+            }
+        }
+        
+        if (exists) {
+            pthread_mutex_unlock(&account_mutex);
+            tcp_send(state->sockfd, "501"); // Username đã tồn tại
+            write_log(state->client_addr, command, "-ERR Username already exists");
+            return;
+        }
+        
+        /* Save new account */
+        if (save_account(username, password) == 0) {
+            pthread_mutex_unlock(&account_mutex);
+            tcp_send(state->sockfd, "120"); // Đăng ký thành công
+            write_log(state->client_addr, command, "+OK Registration successful");
+            printf("New account registered: %s\n", username);
+        } else {
+            pthread_mutex_unlock(&account_mutex);
+            tcp_send(state->sockfd, "502"); // Lỗi ghi file
+            write_log(state->client_addr, command, "-ERR Failed to save account");
+        }
     }
-    /* Handle BYE command */
-    else if (strcmp(cmd, "BYE") == 0) {
+    /* Handle LEAVE command */
+    else if (strcmp(cmd, "LEAVE") == 0) {
+        // 1. Kiểm tra đã đăng nhập
         if (!state->is_logged_in) {
-            tcp_send(state->sockfd, "221");
+            tcp_send(state->sockfd, "400"); // Chưa đăng nhập
+            return;
+        }
+        
+        // 2. Kiểm tra có ở trong nhóm nào không
+        if (state->current_group_id == -1) {
+            tcp_send(state->sockfd, "404"); // Chưa tham gia nhóm nào
+            write_log(state->client_addr, command, "-ERR Not in any group");
+            return;
+        }
+        
+        int old_group_id = state->current_group_id;
+        
+        pthread_mutex_lock(&group_mutex);
+        
+        // 3. Kiểm tra xem user có phải là leader không
+        int group_idx = find_group_by_id(old_group_id);
+        int is_leader = 0;
+        if (group_idx != -1 && strcmp(groups[group_idx].leader, state->logged_user) == 0) {
+            is_leader = 1;
+        }
+        
+        pthread_mutex_unlock(&group_mutex);
+        
+        // 4. Nếu là leader → Soft delete nhóm và đá tất cả thành viên
+        if (is_leader) {
+            pthread_mutex_lock(&group_mutex);
+            
+            // Set active = 0 (soft delete)
+            if (group_idx != -1) {
+                groups[group_idx].active = 0;
+                save_groups(); // Ghi lại groups.txt
+            }
+            
+            pthread_mutex_unlock(&group_mutex);
+            
+            // Đá tất cả thành viên ra khỏi nhóm (set group_id = -1)
+            pthread_mutex_lock(&account_mutex);
+            for (i = 0; i < account_count; i++) {
+                if (accounts[i].group_id == old_group_id) {
+                    accounts[i].group_id = -1;
+                }
+            }
+            
+            // Ghi lại account.txt
+            FILE *f = fopen("TCP_Server/account.txt", "w");
+            if (f != NULL) {
+                for (int j = 0; j < account_count; j++) {
+                    fprintf(f, "%s %s %d\n", accounts[j].username, 
+                            accounts[j].password, accounts[j].group_id);
+                }
+                fclose(f);
+            }
+            pthread_mutex_unlock(&account_mutex);
+            
+            state->current_group_id = -1;
+            tcp_send(state->sockfd, "200"); // Rời nhóm thành công
+            write_log(state->client_addr, command, "+OK Group deleted (leader left)");
+            printf("Leader %s left and group %d was deleted\n", state->logged_user, old_group_id);
+        }
+        // 5. Nếu là thành viên thường → Chỉ rời nhóm
+        else {
+            pthread_mutex_lock(&account_mutex);
+            for (i = 0; i < account_count; i++) {
+                if (strcmp(accounts[i].username, state->logged_user) == 0) {
+                    accounts[i].group_id = -1;
+                    
+                    // Ghi lại vào file account.txt
+                    FILE *f = fopen("TCP_Server/account.txt", "w");
+                    if (f != NULL) {
+                        for (int j = 0; j < account_count; j++) {
+                            fprintf(f, "%s %s %d\n", accounts[j].username, 
+                                    accounts[j].password, accounts[j].group_id);
+                        }
+                        fclose(f);
+                    }
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&account_mutex);
+            
+            state->current_group_id = -1;
+            tcp_send(state->sockfd, "200"); // Rời nhóm thành công
+            write_log(state->client_addr, command, "+OK Left group successfully");
+            printf("User %s left group (group_id: %d)\n", state->logged_user, old_group_id);
+        }
+    }
+    /* Handle LOGOUT command */
+    else if (strcmp(cmd, "JOIN") == 0) {
+        // 1. Kiểm tra đã đăng nhập
+        if (!state->is_logged_in) {
+            tcp_send(state->sockfd, "400"); // Chưa đăng nhập
+            return;
+        }
+        
+        // 2. Parse group name
+        char group_name[MAX_GROUP_NAME];
+        if (sscanf(command, "JOIN %s", group_name) != 1) {
+            tcp_send(state->sockfd, "300"); // Sai cú pháp
+            return;
+        }
+        
+        pthread_mutex_lock(&group_mutex);
+        
+        // 3. Tìm group
+        int group_idx = find_group_by_name(group_name);
+        if (group_idx == -1) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "500"); // Nhóm không tồn tại
+            write_log(state->client_addr, command, "-ERR Group does not exist");
+            return;
+        }
+        
+        int group_id = groups[group_idx].group_id;
+        
+        // 4. Kiểm tra đã ở trong nhóm này chưa
+        if (state->current_group_id == group_id) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "405"); // Đã ở trong nhóm này rồi
+            write_log(state->client_addr, command, "-ERR Already in this group");
+            return;
+        }
+        
+        // 5. Kiểm tra đã gửi request chưa
+        if (check_join_request_exists(state->logged_user, group_id)) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "160"); // Đã gửi yêu cầu rồi (coi như thành công)
+            write_log(state->client_addr, command, "+OK Request already sent");
+            return;
+        }
+        
+        // 6. Thêm join request
+        if (add_join_request(state->logged_user, group_id) == 0) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "160"); // Gửi yêu cầu thành công
+            write_log(state->client_addr, command, "+OK Join request sent");
+            printf("User %s requested to join group %s\n", state->logged_user, group_name);
+        } else {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "502"); // Lỗi hệ thống
+            write_log(state->client_addr, command, "-ERR System error");
+        }
+    }
+    /* Handle APPROVE command */
+    else if (strcmp(cmd, "APPROVE") == 0) {
+        // 1. Kiểm tra đã đăng nhập
+        if (!state->is_logged_in) {
+            tcp_send(state->sockfd, "400"); // Chưa đăng nhập
+            return;
+        }
+        
+        // 2. Parse username
+        char target_username[MAX_USERNAME];
+        if (sscanf(command, "APPROVE %s", target_username) != 1) {
+            tcp_send(state->sockfd, "300"); // Sai cú pháp
+            return;
+        }
+        
+        pthread_mutex_lock(&group_mutex);
+        
+        // 3. Kiểm tra user hiện tại có phải trưởng nhóm không
+        if (state->current_group_id == -1) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "406"); // Không phải trưởng nhóm (chưa có nhóm)
+            return;
+        }
+        
+        int group_idx = find_group_by_id(state->current_group_id);
+        if (group_idx == -1 || strcmp(groups[group_idx].leader, state->logged_user) != 0) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "406"); // Không phải trưởng nhóm
+            write_log(state->client_addr, command, "-ERR Not group leader");
+            return;
+        }
+        
+        // 4. Kiểm tra có yêu cầu từ user này không
+        if (!check_join_request_exists(target_username, state->current_group_id)) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "500"); // Không tìm thấy yêu cầu
+            write_log(state->client_addr, command, "-ERR No request from this user");
+            return;
+        }
+        
+        // 5. Phê duyệt: Xóa request và cập nhật group_id cho user
+        remove_join_request(target_username, state->current_group_id);
+        
+        pthread_mutex_lock(&account_mutex);
+        for (i = 0; i < account_count; i++) {
+            if (strcmp(accounts[i].username, target_username) == 0) {
+                accounts[i].group_id = state->current_group_id;
+                
+                // Cập nhật file account.txt
+                FILE *f = fopen("TCP_Server/account.txt", "w");
+                if (f != NULL) {
+                    for (int j = 0; j < account_count; j++) {
+                        fprintf(f, "%s %s %d\n", accounts[j].username, 
+                                accounts[j].password, accounts[j].group_id);
+                    }
+                    fclose(f);
+                }
+                break;
+            }
+        }
+        pthread_mutex_unlock(&account_mutex);
+        pthread_mutex_unlock(&group_mutex);
+        
+        tcp_send(state->sockfd, "170"); // Phê duyệt thành công
+        write_log(state->client_addr, command, "+OK Approval successful");
+        printf("User %s approved %s to join group\n", state->logged_user, target_username);
+    }
+    /* Handle LOGOUT command */
+    else if (strcmp(cmd, "LOGOUT") == 0) {
+        if (!state->is_logged_in) {
+            tcp_send(state->sockfd, "400"); // Chưa đăng nhập
             return;
         }
         
@@ -606,6 +1031,7 @@ int main(int argc, char *argv[]) {
     port = atoi(argv[1]);
     
     load_accounts();
+    load_groups();
     
     /* Create socket */
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {

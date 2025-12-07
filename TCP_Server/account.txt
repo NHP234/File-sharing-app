@@ -1,3 +1,4 @@
-tungbt 1 1
-admin 1 1
-ductq 0 -1
+tungbt 123456 1
+admin admin123 1
+ductq password -1
+Phuc 123 -1

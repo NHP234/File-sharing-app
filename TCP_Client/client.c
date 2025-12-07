@@ -295,14 +295,17 @@ void handle_download(int sockfd, conn_state_t *state) {
 }
 
 void print_menu() {
-    printf("\n=== ARTICLE POSTING SYSTEM ===\n");
+    printf("\n=== FILE SHARING SYSTEM ===\n");
     printf("1. Login\n");
-    printf("2. Post article\n");
+    printf("2. Register\n");
     printf("3. Logout\n");
     printf("4. Exit\n");
     printf("5. Upload File\n"); 
     printf("6. Download File\n");
-    printf("==============================\n");
+    printf("7. Join Group\n");
+    printf("8. Approve Member\n");
+    printf("9. Leave Group\n");
+    printf("============================\n");
     printf("Your choice: ");
 }
 
@@ -317,29 +320,41 @@ void print_response(char *code) {
     } else if (strcmp(code, "110") == 0) {
         printf(">> Login successful\n");
     } else if (strcmp(code, "120") == 0) {
-        printf(">> Article posted successfully\n");
+        printf(">> Registration successful\n");
     } else if (strcmp(code, "130") == 0) {
         printf(">> Logout successful\n");
-    } else if (strcmp(code, "211") == 0) {
-        printf(">> Account is blocked\n");
-    } else if (strcmp(code, "212") == 0) {
-        printf(">> Account does not exist\n");
-    } else if (strcmp(code, "213") == 0) {
-        printf(">> Already logged in\n");
-    } else if (strcmp(code, "214") == 0) {
-        printf(">> Account already logged in on another client\n");
-    } else if (strcmp(code, "221") == 0) {
-        printf(">> Not logged in yet\n");
     } else if (strcmp(code, "300") == 0) {
-        printf(">> Unknown command\n");
+        printf(">> Error: Invalid command syntax\n");
+    } else if (strcmp(code, "400") == 0) {
+        printf(">> Error: Please login first\n");
+    } else if (strcmp(code, "401") == 0) {
+        printf(">> Error: Wrong username or password\n");
+    } else if (strcmp(code, "402") == 0) {
+        printf(">> Error: Account does not exist\n");
+    } else if (strcmp(code, "403") == 0) {
+        printf(">> Error: Already logged in\n");
+    } else if (strcmp(code, "404") == 0) {
+        printf(">> Error: You are not in any group\n");
+    } else if (strcmp(code, "405") == 0) {
+        printf(">> Error: Already in this group\n");
+    } else if (strcmp(code, "406") == 0) {
+        printf(">> Error: You are not the group leader\n");
+    } else if (strcmp(code, "407") == 0) {
+        printf(">> Error: You are already in another group\n");
     } else if (strcmp(code, "140") == 0) {
         printf(">> Upload successfully!\n");
-    } else if (strcmp(code, "400") == 0) {
-        printf(">> Error: Please login first.\n");
-    } else if (strcmp(code, "404") == 0) {
-        printf(">> Error: You are not in any group. Please join or create a group first.\n");
+    } else if (strcmp(code, "160") == 0) {
+        printf(">> Join request sent successfully\n");
+    } else if (strcmp(code, "170") == 0) {
+        printf(">> Member approved successfully\n");
+    } else if (strcmp(code, "200") == 0) {
+        printf(">> Left group successfully\n");
+    } else if (strcmp(code, "500") == 0) {
+        printf(">> Error: Resource not found\n");
     } else if (strcmp(code, "502") == 0) {
-        printf(">> Error: Server could not save file.\n");
+        printf(">> Error: Username already exists\n");
+    } else if (strcmp(code, "502") == 0) {
+        printf(">> Error: Server could not save file\n");
     } else {
         printf(">> Response: %s\n", code);
     }
@@ -359,7 +374,6 @@ int main(int argc, char *argv[]) {
     conn_state_t state;
     char buffer[BUFF_SIZE];
     char username[100];
-    char article[BUFF_SIZE];
     char command[BUFF_SIZE];
     int choice;
     int is_logged_in = 0;
@@ -412,40 +426,58 @@ int main(int argc, char *argv[]) {
         
         switch (choice) {
             case 1: /* Login */
-                printf("Enter username: ");
-                if (fgets(username, sizeof(username), stdin) == NULL) {
-                    break;
-                }
-                username[strcspn(username, "\n")] = 0; 
-                
-                snprintf(command, sizeof(command), "USER %s", username);
-                if (tcp_send(sockfd, command) > 0) {
-                    if (tcp_receive(sockfd, &state, buffer, BUFF_SIZE) > 0) {
-                        print_response(buffer);
-                        if (strcmp(buffer, "110") == 0) {
-                            is_logged_in = 1;
+                {
+                    char password[100];
+                    printf("Enter username: ");
+                    if (fgets(username, sizeof(username), stdin) == NULL) {
+                        break;
+                    }
+                    username[strcspn(username, "\n")] = 0;
+                    
+                    printf("Enter password: ");
+                    if (fgets(password, sizeof(password), stdin) == NULL) {
+                        break;
+                    }
+                    password[strcspn(password, "\n")] = 0;
+                    
+                    snprintf(command, sizeof(command), "LOGIN %s %s", username, password);
+                    if (tcp_send(sockfd, command) > 0) {
+                        if (tcp_receive(sockfd, &state, buffer, BUFF_SIZE) > 0) {
+                            print_response(buffer);
+                            if (strcmp(buffer, "110") == 0) {
+                                is_logged_in = 1;
+                            }
                         }
                     }
                 }
                 break;
                 
-            case 2: /* Post article */
-                printf("Enter article content: ");
-                if (fgets(article, sizeof(article) - 6, stdin) == NULL) {
-                    break;
-                }
-                article[strcspn(article, "\n")] = 0; 
-                
-                snprintf(command, sizeof(command), "POST %.4089s", article);
-                if (tcp_send(sockfd, command) > 0) {
-                    if (tcp_receive(sockfd, &state, buffer, BUFF_SIZE) > 0) {
-                        print_response(buffer);
+            case 2: /* Register */
+                {
+                    char password[100];
+                    printf("Enter username: ");
+                    if (fgets(username, sizeof(username), stdin) == NULL) {
+                        break;
+                    }
+                    username[strcspn(username, "\n")] = 0;
+                    
+                    printf("Enter password: ");
+                    if (fgets(password, sizeof(password), stdin) == NULL) {
+                        break;
+                    }
+                    password[strcspn(password, "\n")] = 0;
+                    
+                    snprintf(command, sizeof(command), "REGISTER %s %s", username, password);
+                    if (tcp_send(sockfd, command) > 0) {
+                        if (tcp_receive(sockfd, &state, buffer, BUFF_SIZE) > 0) {
+                            print_response(buffer);
+                        }
                     }
                 }
                 break;
                 
             case 3: /* Logout */
-                if (tcp_send(sockfd, "BYE") > 0) {
+                if (tcp_send(sockfd, "LOGOUT") > 0) {
                     if (tcp_receive(sockfd, &state, buffer, BUFF_SIZE) > 0) {
                         print_response(buffer);
                         if (strcmp(buffer, "130") == 0) {
@@ -457,7 +489,7 @@ int main(int argc, char *argv[]) {
                 
             case 4: /* Exit */
                 if (is_logged_in) {
-                    tcp_send(sockfd, "BYE");
+                    tcp_send(sockfd, "LOGOUT");
                     tcp_receive(sockfd, &state, buffer, BUFF_SIZE);
                 }
                 printf("Goodbye!\n");
@@ -470,6 +502,50 @@ int main(int argc, char *argv[]) {
 
             case 6: /* Download */
                 handle_download(sockfd, &state);
+                break;
+                
+            case 7: /* Join Group */
+                {
+                    char group_name[100];
+                    printf("Enter group name to join: ");
+                    if (fgets(group_name, sizeof(group_name), stdin) == NULL) {
+                        break;
+                    }
+                    group_name[strcspn(group_name, "\n")] = 0;
+                    
+                    snprintf(command, sizeof(command), "JOIN %s", group_name);
+                    if (tcp_send(sockfd, command) > 0) {
+                        if (tcp_receive(sockfd, &state, buffer, BUFF_SIZE) > 0) {
+                            print_response(buffer);
+                        }
+                    }
+                }
+                break;
+                
+            case 8: /* Approve Member */
+                {
+                    char target_user[100];
+                    printf("Enter username to approve: ");
+                    if (fgets(target_user, sizeof(target_user), stdin) == NULL) {
+                        break;
+                    }
+                    target_user[strcspn(target_user, "\n")] = 0;
+                    
+                    snprintf(command, sizeof(command), "APPROVE %s", target_user);
+                    if (tcp_send(sockfd, command) > 0) {
+                        if (tcp_receive(sockfd, &state, buffer, BUFF_SIZE) > 0) {
+                            print_response(buffer);
+                        }
+                    }
+                }
+                break;
+                
+            case 9: /* Leave Group */
+                if (tcp_send(sockfd, "LEAVE") > 0) {
+                    if (tcp_receive(sockfd, &state, buffer, BUFF_SIZE) > 0) {
+                        print_response(buffer);
+                    }
+                }
                 break;
                 
             default:
