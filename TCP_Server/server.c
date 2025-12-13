@@ -24,8 +24,8 @@
 /* Account structure */
 typedef struct {
     char username[MAX_USERNAME];
-    int status; /* 0: blocked, 1: active */
-    int logged_in; /* 0: not logged in, 1: logged in */
+    int status;
+    int logged_in;
     int group_id;
 } account_t;
 
@@ -37,7 +37,7 @@ typedef struct {
     char logged_user[MAX_USERNAME];
     int is_logged_in;
     int current_group_id;
-    char client_addr[50]; /* IP:Port of client */
+    char client_addr[50]; 
 } conn_state_t;
 
 /* Global variables */
@@ -93,15 +93,12 @@ void write_log(const char *client_addr, const char *request, const char *result)
              t->tm_mday, t->tm_mon + 1, t->tm_year + 1900,
              t->tm_hour, t->tm_min, t->tm_sec);
     
-    // Write to log file (thread-safe)
     pthread_mutex_lock(&log_mutex);
     FILE *f = fopen(log_filename, "a");
     if (f != NULL) {
         if (request == NULL || strlen(request) == 0) {
-            // Connection log (welcome message)
             fprintf(f, "%s$%s$%s\n", timestamp, client_addr, result);
         } else {
-            // Request/response log
             fprintf(f, "%s$%s$%s\\r\\n$%s\n", timestamp, client_addr, request, result);
         }
         fclose(f);
@@ -143,11 +140,9 @@ int tcp_send(int sockfd, char *msg) {
     char buffer[BUFF_SIZE + 2];
     int len, total = 0, bytes_sent;
     
-    /* Add \r\n to message */
     snprintf(buffer, sizeof(buffer), "%s\r\n", msg);
     len = strlen(buffer);
     
-    /* Send all data */
     while (total < len) {
         bytes_sent = send(sockfd, buffer + total, len - total, 0);
         if (bytes_sent <= 0) {
@@ -171,10 +166,8 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
     int bytes_received, i;
     
     while (1) {
-        /* Check if we have \r\n in recv_buffer */
         for (i = 0; i < state->buffer_pos - 1; i++) {
             if (state->recv_buffer[i] == '\r' && state->recv_buffer[i + 1] == '\n') {
-                /* Found complete message */
                 int msg_len = i;
                 if (msg_len >= max_len) {
                     msg_len = max_len - 1;
@@ -183,7 +176,6 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
                 memcpy(buffer, state->recv_buffer, msg_len);
                 buffer[msg_len] = '\0';
                 
-                /* Remove message from buffer */
                 state->buffer_pos -= (i + 2);
                 memmove(state->recv_buffer, state->recv_buffer + i + 2, state->buffer_pos);
                 
@@ -191,7 +183,6 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
             }
         }
         
-        /* Receive more data */
         if (state->buffer_pos >= BUFF_SIZE - 1) {
             return -1; /* Buffer full */
         }
@@ -211,11 +202,9 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
 void check_and_create_dir() {
     struct stat st = {0};
     if (stat(STORAGE_DIR, &st) == -1) {
-        mkdir(STORAGE_DIR, 0700); // Tạo thư mục với quyền đọc/ghi cho owner
+        mkdir(STORAGE_DIR, 0700); 
     }
 }
-
-// --- THÊM ĐOẠN NÀY VÀO TRƯỚC process_command ---
 
 /**
  * @function get_file_size: Get size of a file
@@ -228,6 +217,34 @@ long long get_file_size(const char *filename) {
         return st.st_size;
     }
     return -1;
+}
+
+/**
+ * @function send_all: Đảm bảo gửi toàn bộ dữ liệu trong buffer qua socket
+ * @param sockfd: Socket file descriptor
+ * @param buffer: Con trỏ tới dữ liệu cần gửi (có thể là chuỗi hoặc dữ liệu file)
+ * @param length: Tổng số byte cần gửi
+ * @return: 0 nếu thành công, -1 nếu có lỗi mạng
+ */
+int send_all(int sockfd, const void *buffer, int length) {
+    const char *ptr = (const char *)buffer; 
+    int total_sent = 0;
+    int bytes_left = length;
+    int n;
+
+    while (total_sent < length) {
+        n = send(sockfd, ptr + total_sent, bytes_left, 0);
+        
+        if (n == -1) {
+            perror("send() error"); 
+            return -1;
+        }
+        
+        total_sent += n;
+        bytes_left -= n;
+    }
+
+    return 0; 
 }
 
 /**
@@ -246,8 +263,7 @@ int send_file_content(int sockfd, char *filepath) {
     size_t n_read;
     
     while ((n_read = fread(file_buf, 1, sizeof(file_buf), fp)) > 0) {
-        // Gửi dữ liệu thô, không dùng tcp_send (vì tcp_send thêm \r\n)
-        int n_sent = send(sockfd, file_buf, n_read, 0);
+        int n_sent = send_all(sockfd, file_buf, n_read);
         if (n_sent < 0) {
             fclose(fp);
             return -1;
@@ -260,23 +276,26 @@ int send_file_content(int sockfd, char *filepath) {
 
 /**
  * @function receive_file_content: Receive raw binary data from client
- * Handles buffer leftovers from previous recv operations.
+ * @param sockfd: Socket descriptor
+ * @param state: Connection state
+ * @param filepath: Full path to save the received file
+ * @param filesize: Total size of the file to receive
+ * @return: 0 on success, -1 on file error, -2 on connection error
  */
 int receive_file_content(int sockfd, conn_state_t *state, char *filepath, long long filesize) {
+    // printf("hello\n");
     FILE *fp = fopen(filepath, "wb");
     if (fp == NULL) {
         perror("File open failed");
-        return -1; // Lỗi 502
+        return -1; 
     }
+    // printf("hello2\n");
 
     long long total_received = 0;
     
-    // 1. Xử lý dữ liệu còn tồn đọng trong buffer (Leftover data)
-    // Đây là dữ liệu client đã gửi ngay sau lệnh UPLOAD mà server đã recv nhưng chưa xử lý
     if (state->buffer_pos > 0) {
         long long to_write = state->buffer_pos;
         
-        // Nếu dữ liệu tồn đọng lớn hơn cả kích thước file (trường hợp file rất nhỏ)
         if (to_write > filesize) {
             to_write = filesize;
         }
@@ -284,7 +303,6 @@ int receive_file_content(int sockfd, conn_state_t *state, char *filepath, long l
         fwrite(state->recv_buffer, 1, to_write, fp);
         total_received += to_write;
 
-        // Dọn dẹp buffer: Xóa phần đã ghi vào file, dồn phần thừa (nếu có - lệnh tiếp theo) lên đầu
         int remaining = state->buffer_pos - to_write;
         if (remaining > 0) {
             memmove(state->recv_buffer, state->recv_buffer + to_write, remaining);
@@ -292,12 +310,10 @@ int receive_file_content(int sockfd, conn_state_t *state, char *filepath, long l
         state->buffer_pos = remaining;
     }
 
-    // 2. Nhận phần còn lại trực tiếp từ socket
     char file_buf[BUFF_SIZE];
     int n;
     
     while (total_received < filesize) {
-        // Tính số byte cần nhận (không nhận quá filesize)
         long long bytes_to_recv = sizeof(file_buf);
         if (filesize - total_received < bytes_to_recv) {
             bytes_to_recv = filesize - total_received;
@@ -306,7 +322,7 @@ int receive_file_content(int sockfd, conn_state_t *state, char *filepath, long l
         n = recv(sockfd, file_buf, bytes_to_recv, 0);
         if (n <= 0) {
             fclose(fp);
-            return -2; // Lỗi kết nối
+            return -2; 
         }
 
         fwrite(file_buf, 1, n, fp);
@@ -315,7 +331,7 @@ int receive_file_content(int sockfd, conn_state_t *state, char *filepath, long l
 
     fclose(fp);
     printf("File saved: %s (%lld bytes)\n", filepath, total_received);
-    return 0; // Thành công
+    return 0; 
 }
 
 /**
@@ -328,7 +344,7 @@ void process_command(conn_state_t *state, char *command) {
     char cmd[20], arg[BUFF_SIZE];
     int i;
     long long filesize;
-    char log_result[256]; /* Buffer for log result message */
+    char log_result[256]; 
     
     /* Parse command */
     if (sscanf(command, "%s", cmd) != 1) {
@@ -338,20 +354,16 @@ void process_command(conn_state_t *state, char *command) {
     
     /* Handle USER command */
     if (strcmp(cmd, "USER") == 0) {
-        /* Check if already logged in */
         if (state->is_logged_in) {
             tcp_send(state->sockfd, "213");
             return;
         }
         
-        /* Try to parse username */
         if (sscanf(command, "USER %s", arg) != 1) {
-            /* USER command without username -> account not exist */
             tcp_send(state->sockfd, "212");
             return;
         }
         
-        /* Find account */
         pthread_mutex_lock(&account_mutex);
         int found = -1;
         for (i = 0; i < account_count; i++) {
@@ -379,7 +391,6 @@ void process_command(conn_state_t *state, char *command) {
             return;
         }
         
-        /* Login successful */
         accounts[found].logged_in = 1;
         strcpy(state->logged_user, arg);
         state->is_logged_in = 1;
@@ -397,7 +408,6 @@ void process_command(conn_state_t *state, char *command) {
             return;
         }
         
-        /* Extract article content (after "POST ") */
         char *article = command + 5;
         if (strlen(article) == 0) {
             tcp_send(state->sockfd, "300");
@@ -415,7 +425,6 @@ void process_command(conn_state_t *state, char *command) {
             return;
         }
         
-        /* Logout */
         pthread_mutex_lock(&account_mutex);
         for (i = 0; i < account_count; i++) {
             if (strcmp(accounts[i].username, state->logged_user) == 0) {
@@ -432,106 +441,84 @@ void process_command(conn_state_t *state, char *command) {
     }
     /* Handle UPLOAD command */
     else if (strcmp(cmd, "UPLOAD") == 0) {
-        // 1. Kiểm tra đăng nhập
         if (!state->is_logged_in) {
-            tcp_send(state->sockfd, "400"); // Mã lỗi: Chưa đăng nhập
+            tcp_send(state->sockfd, "400"); 
             return;
         }
 
         if (state->current_group_id == -1) {
-            tcp_send(state->sockfd, "404"); // Lỗi: Chưa tham gia nhóm
+            tcp_send(state->sockfd, "404"); 
             return;
         }
 
-        // 2. Phân tích cú pháp: UPLOAD <filename> <filesize>
-        // Lưu ý: filename có thể chứa đường dẫn, ta chỉ lấy tên file
+        // UPLOAD <filename> <filesize>
         if (sscanf(command, "UPLOAD %s %lld", arg, &filesize) != 2) {
-            tcp_send(state->sockfd, "300"); // Sai cú pháp
+            tcp_send(state->sockfd, "300"); 
             return;
         }
 
-        // 3. Chuẩn bị đường dẫn file
-        // Hiện tại chưa có Group, ta lưu tạm vào thư mục server_storage/
+        // chưa có Group, lưu vào thư mục server_storage/
         check_and_create_dir();
         
         char filepath[BUFF_SIZE + 100];
-        // Đơn giản hóa tên file để tránh tấn công Directory Traversal (../)
-        // Trong thực tế nên dùng basename(arg) nhưng cần include libgen.h
         snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, arg);
 
-        // 4. Gửi mã 141 - Sẵn sàng nhận file
+        FILE *fp = fopen(filepath, "wb");
+        if (fp == NULL) {
+            tcp_send(state->sockfd, "502"); 
+            write_log(state->client_addr, command, "-ERR File write error");
+            return;
+        }
         tcp_send(state->sockfd, "141");
 
-        // 5. Chuyển sang chế độ nhận file binary
         int ret = receive_file_content(state->sockfd, state, filepath, filesize);
 
         if (ret == 0) {
-            tcp_send(state->sockfd, "140"); // Upload thành công
+            tcp_send(state->sockfd, "140"); 
             snprintf(log_result, sizeof(log_result), "+OK Successful upload");
             write_log(state->client_addr, command, log_result);
         } else if (ret == -1) {
-            tcp_send(state->sockfd, "502"); // Lỗi ghi file
+            tcp_send(state->sockfd, "502"); 
             write_log(state->client_addr, command, "-ERR File write error");
         } else {
-            // Lỗi kết nối (-2), handle_client sẽ tự đóng socket sau khi hàm này return
-            // Không cần gửi gì cả vì kết nối có thể đã đứt
             write_log(state->client_addr, command, "-ERR Connection lost");
         }
     } 
     else if (strcmp(cmd, "DOWNLOAD") == 0) {
-        // 1. Kiểm tra đăng nhập
         if (!state->is_logged_in) {
-            tcp_send(state->sockfd, "400"); // Mã lỗi: Chưa đăng nhập
+            tcp_send(state->sockfd, "400"); 
             return;
         }
 
         if (state->current_group_id == -1) {
-            tcp_send(state->sockfd, "404"); // Lỗi: Chưa tham gia nhóm
+            tcp_send(state->sockfd, "404");
             return;
         }
 
-        // 2. Phân tích cú pháp: DOWNLOAD <filename>
+        // DOWNLOAD <filename>
         if (sscanf(command, "DOWNLOAD %s", arg) != 1) {
-            tcp_send(state->sockfd, "300"); // Sai cú pháp
+            tcp_send(state->sockfd, "300"); 
             return;
         }
 
-        // 3. Kiểm tra file tồn tại
         char filepath[512];
-        // Giả sử file nằm trong thư mục server_storage
-        snprintf(filepath, sizeof(filepath), "%s/%.495s", STORAGE_DIR, arg);
+        snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, arg);
         
         long long filesize = get_file_size(filepath);
         if (filesize < 0) {
-            tcp_send(state->sockfd, "500"); // File không tồn tại
+            tcp_send(state->sockfd, "500");
             return;
         }
 
-        // 4. Gửi thông báo bắt đầu truyền: 151 <filesize>
-        // Mã 151 báo hiệu cho Client biết file có tồn tại và kích thước bao nhiêu
         char msg[100];
         snprintf(msg, sizeof(msg), "151 %lld", filesize);
         tcp_send(state->sockfd, msg);
-
-        // --- ĐỒNG BỘ HÓA ---
-        // Để an toàn, tránh việc Server gửi dữ liệu quá nhanh làm tràn buffer Client
-        // khi Client chưa kịp chuyển sang chế độ nhận file binary.
-        // Server sẽ chờ một tín hiệu "READY" từ Client.
-        // Tuy nhiên, trong mô hình poll đơn luồng, việc gọi tcp_receive ở đây
-        // có thể làm block luồng chính nếu Client chậm.
-        // ĐỂ ĐƠN GIẢN CHO BÀI TẬP: Ta sẽ gửi luôn. 
-        // Client PHẢI xử lý được dữ liệu dồn toa (Buffer leftover).
         
-        // 5. Gửi nội dung file
         if (send_file_content(state->sockfd, filepath) == 0) {
-            // Gửi file xong mới gửi thông báo thành công theo giao thức
-            // Client sẽ nhận được mã này sau khi đã đọc đủ số byte của file
             tcp_send(state->sockfd, "150");
             snprintf(log_result, sizeof(log_result), "+OK Successful download %lld bytes", filesize);
             write_log(state->client_addr, command, log_result);
         } else {
-            // Lỗi trong quá trình đọc file server hoặc gửi mạng
-            // (Thường thì connection sẽ đứt sau đó)
             write_log(state->client_addr, command, "-ERR Download failed");
         }
     }

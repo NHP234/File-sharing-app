@@ -11,13 +11,11 @@
 
 #define BUFF_SIZE 4096
 
-/* Connection state */
 typedef struct {
     char recv_buffer[BUFF_SIZE];
     int buffer_pos;
 } conn_state_t;
 
-/* Function prototypes */
 int tcp_send(int sockfd, char *msg);
 int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len);
 void print_menu();
@@ -26,9 +24,17 @@ void print_response(char *code);
 long long get_file_size(const char *filename) {
     struct stat st;
     if (stat(filename, &st) == 0) {
-        return st.st_size;
+        // Kiểm tra xem có phải là file thường không (không phải thư mục, symlink, etc.)
+        if (S_ISREG(st.st_mode)) {
+            return st.st_size;
+        }
+        // Nếu là thư mục hoặc loại file khác, trả về -2 để phân biệt
+        if (S_ISDIR(st.st_mode)) {
+            return -2; // Là thư mục
+        }
+        return -3; // Là loại file khác (symlink, device, etc.)
     }
-    return -1;
+    return -1; // File không tồn tại hoặc không thể truy cập
 }
 
 /**
@@ -58,6 +64,34 @@ int tcp_send(int sockfd, char *msg) {
 }
 
 /**
+ * @function send_all: Đảm bảo gửi toàn bộ dữ liệu trong buffer qua socket
+ * @param sockfd: Socket file descriptor
+ * @param buffer: Con trỏ tới dữ liệu cần gửi (có thể là chuỗi hoặc dữ liệu file)
+ * @param length: Tổng số byte cần gửi
+ * @return: 0 nếu thành công, -1 nếu có lỗi mạng
+ */
+int send_all(int sockfd, const void *buffer, int length) {
+    const char *ptr = (const char *)buffer; // Ép kiểu để tính toán con trỏ
+    int total_sent = 0;
+    int bytes_left = length;
+    int n;
+
+    while (total_sent < length) {
+        n = send(sockfd, ptr + total_sent, bytes_left, 0);
+        
+        if (n == -1) {
+            perror("send() error"); 
+            return -1;
+        }
+        
+        total_sent += n;
+        bytes_left -= n;
+    }
+
+    return 0; // Thành công
+}
+
+/**
  * @function tcp_receive: Receive complete message from server (delimited by \r\n)
  * @param sockfd: Socket file descriptor of the server connection
  * @param state: Connection state containing receive buffer
@@ -69,10 +103,8 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
     int bytes_received, i;
     
     while (1) {
-        /* Check if we have \r\n in recv_buffer */
         for (i = 0; i < state->buffer_pos - 1; i++) {
             if (state->recv_buffer[i] == '\r' && state->recv_buffer[i + 1] == '\n') {
-                /* Found complete message */
                 int msg_len = i;
                 if (msg_len >= max_len) {
                     msg_len = max_len - 1;
@@ -81,7 +113,6 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
                 memcpy(buffer, state->recv_buffer, msg_len);
                 buffer[msg_len] = '\0';
                 
-                /* Remove message from buffer */
                 state->buffer_pos -= (i + 2);
                 memmove(state->recv_buffer, state->recv_buffer + i + 2, state->buffer_pos);
                 
@@ -89,9 +120,8 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
             }
         }
         
-        /* Receive more data */
         if (state->buffer_pos >= BUFF_SIZE - 1) {
-            return -1; /* Buffer full */
+            return -1; 
         }
         
         bytes_received = recv(sockfd, state->recv_buffer + state->buffer_pos, BUFF_SIZE - state->buffer_pos - 1, 0);
@@ -108,36 +138,37 @@ void handle_upload(int sockfd, conn_state_t *state) {
     char buffer[BUFF_SIZE];
     long long filesize;
     
-    // 1. Nhập đường dẫn file
     printf("Enter file path: ");
     if (fgets(filepath, sizeof(filepath), stdin) == NULL) return;
-    filepath[strcspn(filepath, "\n")] = 0; // Xóa \n
+    filepath[strcspn(filepath, "\n")] = 0;
 
-    // 2. Kiểm tra file và lấy kích thước
+    printf("Hello\n");
     filesize = get_file_size(filepath);
-    if (filesize < 0) {
+    if (filesize == -1) {
         printf("Error: File not found or cannot access.\n");
         return;
     }
+    if (filesize == -2) {
+        printf("Error: '%s' is a directory, not a file.\n", filepath);
+        return;
+    }
+    if (filesize == -3) {
+        printf("Error: '%s' is not a regular file.\n", filepath);
+        return;
+    }
+    printf("Hello2\n");
 
-    // 3. Chuẩn bị lệnh UPLOAD
-    // Dùng basename() để chỉ lấy tên file (vd: /home/user/test.txt -> test.txt)
     char *filename = basename(filepath);
     char command[BUFF_SIZE];
     snprintf(command, sizeof(command), "UPLOAD %s %lld", filename, filesize);
-
-    // 4. Gửi lệnh và chờ phản hồi "141"
     if (tcp_send(sockfd, command) <= 0) return;
     
     if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) <= 0) return;
-
-    // Nếu Server trả về lỗi (không phải 141)
     if (strcmp(buffer, "141") != 0) {
-        print_response(buffer); // In lỗi (400, 300...)
+        print_response(buffer); 
         return;
     }
 
-    // 5. Bắt đầu gửi dữ liệu file (Binary Mode)
     printf("Server is ready. Uploading...\n");
     FILE *fp = fopen(filepath, "rb");
     if (fp == NULL) {
@@ -145,26 +176,23 @@ void handle_upload(int sockfd, conn_state_t *state) {
         return;
     }
 
-    char file_buf[65536]; // Buffer 64KB như yêu cầu
+    char file_buf[65536]; 
     size_t n_read;
     long long total_sent = 0;
 
     while ((n_read = fread(file_buf, 1, sizeof(file_buf), fp)) > 0) {
-        // Lưu ý: Dùng send() gốc, KHÔNG dùng tcp_send() vì tcp_send tự thêm \r\n
-        int sent = send(sockfd, file_buf, n_read, 0);
+        int sent = send_all(sockfd, file_buf, n_read);
         if (sent < 0) {
             perror("Send file failed");
             break;
         }
         total_sent += sent;
         
-        // (Tùy chọn) In tiến độ upload
-        // printf("\rSent %lld / %lld bytes", total_sent, filesize);
+        printf("\rSent %lld / %lld bytes", total_sent, filesize);
     }
     printf("\n");
     fclose(fp);
 
-    // 6. Chờ phản hồi kết quả cuối cùng (140)
     if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) > 0) {
         print_response(buffer);
     }
@@ -172,7 +200,11 @@ void handle_upload(int sockfd, conn_state_t *state) {
 
 /**
  * @function receive_file_content_client: Receive binary data from server and save to file
- * Handles data already present in the buffer (leftover) before receiving more.
+ * @param sockfd: Socket descriptor
+ * @param state: Connection state
+ * @param filepath: Full path to save the received file
+ * @param filesize: Total size of the file to receive
+ * @return: 0 on success, -1 on file error, -2 on connection error
  */
 int receive_file_content_client(int sockfd, conn_state_t *state, char *filepath, long long filesize) {
     FILE *fp = fopen(filepath, "wb");
@@ -182,35 +214,29 @@ int receive_file_content_client(int sockfd, conn_state_t *state, char *filepath,
     }
 
     long long total_received = 0;
-
-    // 1. QUAN TRỌNG: Xử lý dữ liệu thừa trong buffer (Leftover)
-    // Sau khi tcp_receive đọc xong dòng "151 <size>\r\n", phần dư trong buffer
-    // chính là phần đầu của dữ liệu file.
+    
     if (state->buffer_pos > 0) {
-        long long chunk_size = state->buffer_pos;
+        long long to_write = state->buffer_pos;
         
-        // Nếu phần dư lớn hơn cả kích thước file (file quá nhỏ, hoặc dính cả lệnh 150 phía sau)
-        if (chunk_size > filesize) {
-            chunk_size = filesize;
+        if (to_write > filesize) {
+            to_write = filesize;
         }
 
-        fwrite(state->recv_buffer, 1, chunk_size, fp);
-        total_received += chunk_size;
+        fwrite(state->recv_buffer, 1, to_write, fp);
+        total_received += to_write;
 
-        // Dọn dẹp buffer: Xóa phần file đã ghi, dồn phần còn lại (nếu có - ví dụ lệnh 150) lên đầu
-        int remaining = state->buffer_pos - chunk_size;
+        int remaining = state->buffer_pos - to_write;
         if (remaining > 0) {
-            memmove(state->recv_buffer, state->recv_buffer + chunk_size, remaining);
+            memmove(state->recv_buffer, state->recv_buffer + to_write, remaining);
         }
         state->buffer_pos = remaining;
     }
 
-    // 2. Nhận phần còn lại trực tiếp từ socket
+
     char file_buf[BUFF_SIZE];
     int n;
 
     while (total_received < filesize) {
-        // Tính toán số byte cần nhận để không đọc lố sang lệnh tiếp theo (150)
         long long bytes_to_recv = sizeof(file_buf);
         if (filesize - total_received < bytes_to_recv) {
             bytes_to_recv = filesize - total_received;
@@ -219,14 +245,13 @@ int receive_file_content_client(int sockfd, conn_state_t *state, char *filepath,
         n = recv(sockfd, file_buf, bytes_to_recv, 0);
         if (n <= 0) {
             fclose(fp);
-            return -2; // Lỗi kết nối
+            return -2; 
         }
 
         fwrite(file_buf, 1, n, fp);
         total_received += n;
         
-        // (Tùy chọn) In tiến độ
-        // printf("\rDownloading... %lld / %lld bytes", total_received, filesize);
+        printf("\rDownloading... %lld / %lld bytes", total_received, filesize);
     }
 
     printf("\n");
@@ -239,23 +264,18 @@ void handle_download(int sockfd, conn_state_t *state) {
     char buffer[BUFF_SIZE];
     long long filesize;
 
-    // 1. Nhập tên file cần tải
     printf("Enter filename to download: ");
     if (fgets(filename, sizeof(filename), stdin) == NULL) return;
-    filename[strcspn(filename, "\n")] = 0; // Xóa \n
+    filename[strcspn(filename, "\n")] = 0;
 
     if (strlen(filename) == 0) return;
 
-    // 2. Gửi lệnh: DOWNLOAD <filename>
     char command[BUFF_SIZE];
     snprintf(command, sizeof(command), "DOWNLOAD %s", filename);
-    
     if (tcp_send(sockfd, command) <= 0) return;
 
-    // 3. Nhận phản hồi đầu tiên
     if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) <= 0) return;
 
-    // 4. Kiểm tra mã phản hồi
     int code;
     if (sscanf(buffer, "%d", &code) != 1) {
         print_response(buffer); return;
@@ -268,17 +288,12 @@ void handle_download(int sockfd, conn_state_t *state) {
         printf(">> Error: File not found on server.\n");
         return;
     } else if (code == 151) {
-        // Mã 151 <filesize>: Bắt đầu nhận file
         sscanf(buffer, "151 %lld", &filesize);
         printf("File found. Size: %lld bytes. Downloading...\n", filesize);
 
-        // Gọi hàm nhận file nhị phân
-        // Lưu file vào thư mục hiện tại với tên giống server
         if (receive_file_content_client(sockfd, state, filename, filesize) == 0) {
             printf("File saved as: %s\n", filename);
             
-            // 5. Sau khi nhận xong file, Server sẽ gửi tiếp mã 150
-            // Dữ liệu mã 150 có thể đã nằm sẵn trong buffer do receive_file_content_client xử lý leftover
             if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) > 0) {
                 if (strcmp(buffer, "150") == 0) {
                     printf(">> Download successfully completed.\n");
@@ -290,7 +305,7 @@ void handle_download(int sockfd, conn_state_t *state) {
             printf(">> Error during download.\n");
         }
     } else {
-        print_response(buffer); // Các lỗi khác (300...)
+        print_response(buffer);
     }
 }
 
@@ -480,3 +495,4 @@ int main(int argc, char *argv[]) {
     close(sockfd);
     return 0;
 }
+
