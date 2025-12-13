@@ -1,0 +1,159 @@
+#include "common.h"
+
+/* ==================== GROUP MANAGEMENT COMMAND HANDLERS ==================== */
+
+/**
+ * @function handle_create_group: Handle CREATE command
+ * @param state: Connection state
+ * @param command: Command string "CREATE <group_name>"
+ * Response codes:
+ *   202: Group created successfully
+ *   400: Not logged in
+ *   407: User already in another group
+ *   501: Group name already exists
+ *   300: Syntax error
+ **/
+void handle_create_group(conn_state_t *state, char *command) {
+    // TODO: Implement create group
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_join_group: Handle JOIN command
+ * @param state: Connection state
+ * @param command: Command string "JOIN <group_name>"
+ * Response codes:
+ *   160: Join request sent successfully
+ *   400: Not logged in
+ *   405: Already in this group
+ *   500: Group does not exist
+ *   300: Syntax error
+ **/
+void handle_join_group(conn_state_t *state, char *command) {
+    // TODO: Implement join group
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_approve: Handle APPROVE command
+ * @param state: Connection state
+ * @param command: Command string "APPROVE <username>"
+ * Response codes:
+ *   170: Approval successful
+ *   400: Not logged in
+ *   406: Not group leader
+ *   500: No request from this user
+ *   300: Syntax error
+ **/
+void handle_approve(conn_state_t *state, char *command) {
+    // TODO: Implement approve
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_invite: Handle INVITE command
+ * @param state: Connection state
+ * @param command: Command string "INVITE <username>"
+ * Response codes:
+ *   180: Invite sent successfully
+ *   400: Not logged in
+ *   406: Not group leader
+ *   405: User already in this group
+ *   300: Syntax error
+ **/
+void handle_invite(conn_state_t *state, char *command) {
+    // TODO: Implement invite
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_accept: Handle ACCEPT command
+ * @param state: Connection state
+ * @param command: Command string "ACCEPT <group_name>"
+ * Response codes:
+ *   190: Joined successfully
+ *   400: Not logged in
+ *   407: User already in another group
+ *   300: Syntax error
+ **/
+void handle_accept(conn_state_t *state, char *command) {
+    // TODO: Implement accept
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_leave: Handle LEAVE command
+ * @param state: Connection state
+ * @param command: Command string "LEAVE"
+ * Response codes:
+ *   200: Left group successfully
+ *   400: Not logged in
+ *   404: Not in any group
+ *   408: Leader must remove all members first
+ *   300: Syntax error
+ **/
+void handle_leave(conn_state_t *state, char *command) {
+    // TODO: Implement leave
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_kick: Handle KICK command
+ * @param state: Connection state
+ * @param command: Command string "KICK <username>"
+ * Response codes:
+ *   201: Member removed successfully
+ *   400: Not logged in
+ *   406: Not group leader
+ *   500: Member not in group
+ *   300: Syntax error
+ **/
+void handle_kick(conn_state_t *state, char *command) {
+    // TODO: Implement kick
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_list_groups: Handle LIST_GROUPS command
+ * @param state: Connection state
+ * @param command: Command string "LIST_GROUPS"
+ * Response codes:
+ *   203: List returned successfully
+ *   400: Not logged in
+ *   300: Syntax error
+ **/
+void handle_list_groups(conn_state_t *state, char *command) {
+    // TODO: Implement list groups
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_list_members: Handle LIST_MEMBERS command
+ * @param state: Connection state
+ * @param command: Command string "LIST_MEMBERS"
+ * Response codes:
+ *   204: List returned successfully
+ *   400: Not logged in
+ *   404: Not in any group
+ *   300: Syntax error
+ **/
+void handle_list_members(conn_state_t *state, char *command) {
+    // TODO: Implement list members
+    tcp_send(state->sockfd, "300");
+}
+
+/**
+ * @function handle_list_requests: Handle LIST_REQUESTS command
+ * @param state: Connection state
+ * @param command: Command string "LIST_REQUESTS"
+ * Response codes:
+ *   205: List returned successfully
+ *   400: Not logged in
+ *   406: Not group leader
+ *   300: Syntax error
+ **/
+void handle_list_requests(conn_state_t *state, char *command) {
+    // TODO: Implement list requests
+    tcp_send(state->sockfd, "300");
+}
+

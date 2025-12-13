@@ -1,0 +1,24 @@
+# Compiled binaries
+TCP_Server/server
+TCP_Client/client
+
+# Object files
+*.o
+
+# Log files
+TCP_Server/logs/*.txt
+
+# Backup files
+*~
+*.bak
+*.swp
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db
+
