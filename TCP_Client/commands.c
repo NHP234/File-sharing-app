@@ -3,18 +3,122 @@
 /* ==================== COMMAND FUNCTIONS ==================== */
 
 void do_register(int sockfd, conn_state_t *state) {
-    // TODO: Implement register
-    printf("Function not implemented yet\n");
+    char username[100];
+    char password[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    printf("\n=== REGISTER NEW ACCOUNT ===\n");
+    printf("Enter username: ");
+    if (fgets(username, sizeof(username), stdin) == NULL) {
+        return;
+    }
+    username[strcspn(username, "\n")] = 0;  /* Remove newline */
+    
+    printf("Enter password: ");
+    if (fgets(password, sizeof(password), stdin) == NULL) {
+        return;
+    }
+    password[strcspn(password, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(username) == 0 || strlen(password) == 0) {
+        printf(">> Username and password cannot be empty\n");
+        return;
+    }
+    
+    /* Send REGISTER command */
+    snprintf(command, sizeof(command), "REGISTER %s %s", username, password);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_login(int sockfd, conn_state_t *state, int *is_logged_in) {
-    // TODO: Implement login
-    printf("Function not implemented yet\n");
+    char username[100];
+    char password[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    /* Check if already logged in */
+    if (*is_logged_in) {
+        printf(">> You are already logged in\n");
+        return;
+    }
+    
+    printf("\n=== LOGIN ===\n");
+    printf("Enter username: ");
+    if (fgets(username, sizeof(username), stdin) == NULL) {
+        return;
+    }
+    username[strcspn(username, "\n")] = 0;  /* Remove newline */
+    
+    printf("Enter password: ");
+    if (fgets(password, sizeof(password), stdin) == NULL) {
+        return;
+    }
+    password[strcspn(password, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(username) == 0 || strlen(password) == 0) {
+        printf(">> Username and password cannot be empty\n");
+        return;
+    }
+    
+    /* Send LOGIN command */
+    snprintf(command, sizeof(command), "LOGIN %s %s", username, password);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+        
+        /* Update login status if successful */
+        if (strncmp(response, "110", 3) == 0) {
+            *is_logged_in = 1;
+        }
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_logout(int sockfd, conn_state_t *state, int *is_logged_in) {
-    // TODO: Implement logout
-    printf("Function not implemented yet\n");
+    char response[BUFF_SIZE];
+    
+    /* Check if logged in */
+    if (!*is_logged_in) {
+        printf(">> You are not logged in\n");
+        return;
+    }
+    
+    /* Send LOGOUT command */
+    if (tcp_send(sockfd, "LOGOUT") <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+        
+        /* Update login status if successful */
+        if (strncmp(response, "130", 3) == 0) {
+            *is_logged_in = 0;
+        }
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_upload(int sockfd, conn_state_t *state) {

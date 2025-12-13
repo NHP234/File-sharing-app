@@ -27,9 +27,9 @@ pthread_mutex_t file_mutex = PTHREAD_MUTEX_INITIALIZER;
  * @return: None
  **/
 void load_accounts() {
-    FILE *f = fopen("TCP_Server/data/accounts.txt", "r");
+    FILE *f = fopen("data/accounts.txt", "r");
     if (f == NULL) {
-        perror("Cannot open TCP_Server/data/accounts.txt");
+        perror("Cannot open data/accounts.txt");
         exit(1);
     }
     
@@ -52,10 +52,10 @@ void load_accounts() {
  * @return: None
  **/
 void load_groups() {
-    FILE *f = fopen("TCP_Server/data/groups.txt", "r");
+    FILE *f = fopen("data/groups.txt", "r");
     if (f == NULL) {
         /* Create file if not exists */
-        f = fopen("TCP_Server/data/groups.txt", "w");
+        f = fopen("data/groups.txt", "w");
         if (f) fclose(f);
         group_count = 0;
         printf("Created new groups.txt\n");
@@ -80,10 +80,10 @@ void load_groups() {
  * @return: None
  **/
 void load_requests() {
-    FILE *f = fopen("TCP_Server/data/requests.txt", "r");
+    FILE *f = fopen("data/requests.txt", "r");
     if (f == NULL) {
         /* Create file if not exists */
-        f = fopen("TCP_Server/data/requests.txt", "w");
+        f = fopen("data/requests.txt", "w");
         if (f) fclose(f);
         request_count = 0;
         printf("Created new requests.txt\n");
@@ -107,10 +107,10 @@ void load_requests() {
  * @return: None
  **/
 void load_invites() {
-    FILE *f = fopen("TCP_Server/data/invites.txt", "r");
+    FILE *f = fopen("data/invites.txt", "r");
     if (f == NULL) {
         /* Create file if not exists */
-        f = fopen("TCP_Server/data/invites.txt", "w");
+        f = fopen("data/invites.txt", "w");
         if (f) fclose(f);
         invite_count = 0;
         printf("Created new invites.txt\n");
@@ -134,7 +134,7 @@ void load_invites() {
  * @return: None
  **/
 void save_accounts() {
-    FILE *f = fopen("TCP_Server/data/accounts.txt", "w");
+    FILE *f = fopen("data/accounts.txt", "w");
     if (f == NULL) {
         perror("Cannot write to accounts.txt");
         return;
@@ -155,7 +155,7 @@ void save_accounts() {
  * @return: None
  **/
 void save_groups() {
-    FILE *f = fopen("TCP_Server/data/groups.txt", "w");
+    FILE *f = fopen("data/groups.txt", "w");
     if (f == NULL) {
         perror("Cannot write to groups.txt");
         return;
@@ -176,7 +176,7 @@ void save_groups() {
  * @return: None
  **/
 void save_requests() {
-    FILE *f = fopen("TCP_Server/data/requests.txt", "w");
+    FILE *f = fopen("data/requests.txt", "w");
     if (f == NULL) {
         perror("Cannot write to requests.txt");
         return;
@@ -196,7 +196,7 @@ void save_requests() {
  * @return: None
  **/
 void save_invites() {
-    FILE *f = fopen("TCP_Server/data/invites.txt", "w");
+    FILE *f = fopen("data/invites.txt", "w");
     if (f == NULL) {
         perror("Cannot write to invites.txt");
         return;
@@ -219,7 +219,7 @@ void save_invites() {
  * @return: None
  **/
 void write_log(const char *message) {
-    FILE *f = fopen("TCP_Server/logs/server_log.txt", "a");
+    FILE *f = fopen("logs/server_log.txt", "a");
     if (f == NULL) return;
     
     time_t now = time(NULL);

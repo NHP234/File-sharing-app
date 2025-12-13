@@ -83,14 +83,13 @@ void process_command(conn_state_t *state, char *command) {
 void *handle_client(void *arg) {
     conn_state_t *state = (conn_state_t *)arg;
     char buffer[BUFF_SIZE];
-    int ret;
     
     /* Send welcome message */
     tcp_send(state->sockfd, "100");
     
     /* Process commands */
     while (1) {
-        ret = tcp_receive(state->sockfd, state, buffer, BUFF_SIZE);
+        int ret = tcp_receive(state->sockfd, state, buffer, BUFF_SIZE);
         if (ret <= 0) {
             break; /* Connection closed or error */
         }
@@ -153,9 +152,9 @@ int main(int argc, char *argv[]) {
     load_invites();
     
     /* Create necessary directories if not exist */
-    mkdir("TCP_Server/data", 0777);
-    mkdir("TCP_Server/groups", 0777);
-    mkdir("TCP_Server/logs", 0777);
+    mkdir("data", 0777);
+    mkdir("groups", 0777);
+    mkdir("logs", 0777);
     
     /* Create socket */
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
