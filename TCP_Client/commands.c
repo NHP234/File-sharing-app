@@ -9,13 +9,13 @@ void do_register(int sockfd, conn_state_t *state) {
     char response[BUFF_SIZE];
     
     printf("\n=== REGISTER NEW ACCOUNT ===\n");
-    printf("Enter username: ");
+    printf("Enter username (less than 50 chars): ");
     if (fgets(username, sizeof(username), stdin) == NULL) {
         return;
     }
     username[strcspn(username, "\n")] = 0;  /* Remove newline */
     
-    printf("Enter password: ");
+    printf("Enter password (less than 50 chars): ");
     if (fgets(password, sizeof(password), stdin) == NULL) {
         return;
     }

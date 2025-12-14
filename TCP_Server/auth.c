@@ -10,6 +10,7 @@
  *   120: Registration successful
  *   501: Username already exists
  *   403: Already logged in
+ *   504: Internal server error
  *   300: Syntax error
  **/
 void handle_register(conn_state_t *state, char *command) {
@@ -49,7 +50,7 @@ void handle_register(conn_state_t *state, char *command) {
     /* Check if account limit reached */
     if (account_count >= MAX_ACCOUNTS) {
         pthread_mutex_unlock(&account_mutex);
-        tcp_send(state->sockfd, "300");
+        tcp_send(state->sockfd, "504");
         return;
     }
     
@@ -89,7 +90,7 @@ void handle_login(conn_state_t *state, char *command) {
     char username[MAX_USERNAME];
     char password[MAX_PASSWORD];
     
-    /* Check if already logged in */
+    /* Check if already logged in in this session */
     if (state->is_logged_in) {
         tcp_send(state->sockfd, "403");
         return;
@@ -160,6 +161,12 @@ void handle_login(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_logout(conn_state_t *state, char *command) {
+    /* Parse command */
+    if (sscanf(command, "LOGOUT") != 0) {
+        tcp_send(state->sockfd, "300");
+        return;
+    }
+
     /* Check if logged in */
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
