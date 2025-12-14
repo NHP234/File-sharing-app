@@ -23,32 +23,32 @@
 | Logging | ✅ Done | write_log() already available |
 
 **Blockers:** 
-- Need LOGIN/CREATE from Person 2 to test UPLOAD/DOWNLOAD
+- ~~Need LOGIN/CREATE from Person 2~~ ✅ LOGIN is ready!
 
 **Next Steps:**
 1. Implement send_file() and receive_file() first (independent)
-2. Wait for LOGIN to be ready
+2. ✅ LOGIN is ready - can start UPLOAD/DOWNLOAD
 3. Implement UPLOAD/DOWNLOAD with proper testing
 
 **Dependencies:**
-- Needs: LOGIN (from Person 2)
+- Needs: ✅ LOGIN (from Person 2) - READY!
 - Blocks: None
 
 ---
 
 ## 🎯 Người 2: Auth & Basic Group (Người dùng & Nhóm cơ bản)
 
-**Status:** Ready to Start  
+**Status:** Phase 1 Complete ✅  
 **Files:** `auth.c`, `group.c`, `TCP_Client/commands.c`
 
 | Task | Status | Notes |
 |------|--------|-------|
-| REGISTER (server) | 🔜 Todo | Start here! |
-| REGISTER (client) | 🔜 Todo | |
-| LOGIN (server) | 🔜 Todo | Critical - blocks others |
-| LOGIN (client) | 🔜 Todo | |
-| LOGOUT (server) | 🔜 Todo | |
-| LOGOUT (client) | 🔜 Todo | |
+| REGISTER (server) | ✅ Done | Tested - works with error codes 120, 501, 403, 504 |
+| REGISTER (client) | ✅ Done | UI complete with input validation |
+| LOGIN (server) | ✅ Done | Tested - works with error codes 110, 401, 402, 403 |
+| LOGIN (client) | ✅ Done | Updates is_logged_in status |
+| LOGOUT (server) | ✅ Done | Tested - works with error codes 130, 400 |
+| LOGOUT (client) | ✅ Done | Clears login status |
 | CREATE (server) | 🔜 Todo | Depends on LOGIN |
 | CREATE (client) | 🔜 Todo | |
 | JOIN (server) | 🔜 Todo | |
@@ -67,14 +67,14 @@
 **Blockers:** None
 
 **Next Steps:**
-1. **Phase 1:** REGISTER, LOGIN, LOGOUT (most critical!)
-2. **Phase 2:** CREATE, LIST_GROUPS
-3. **Phase 3:** JOIN, APPROVE, LIST_MEMBERS, LIST_REQUESTS
-4. **Phase 4:** LEAVE
+1. ✅ **Phase 1:** REGISTER, LOGIN, LOGOUT - COMPLETED!
+2. 🔜 **Phase 2:** CREATE, LIST_GROUPS
+3. 🔜 **Phase 3:** JOIN, APPROVE, LIST_MEMBERS, LIST_REQUESTS
+4. 🔜 **Phase 4:** LEAVE
 
 **Dependencies:**
-- Needs: Nothing (can start immediately)
-- Blocks: Person 1 (UPLOAD/DOWNLOAD), Person 3 (all file operations)
+- Needs: Nothing
+- Blocks: Person 1 (UPLOAD/DOWNLOAD now unblocked!), Person 3 (file operations now unblocked!)
 
 ---
 
@@ -111,16 +111,16 @@
 | KICK (client) | 🔜 Todo | |
 
 **Blockers:** 
-- Waiting for LOGIN/CREATE from Person 2
+- ~~Waiting for LOGIN from Person 2~~ ✅ LOGIN is ready!
 - File operations need UPLOAD from Person 1 for testing
 
 **Next Steps:**
-1. Can start MKDIR and LIST_CONTENT (only need LOGIN)
+1. ✅ LOGIN is ready - can start MKDIR and LIST_CONTENT now!
 2. Wait for UPLOAD to implement file operations
 3. Implement INVITE/KICK after CREATE is ready
 
 **Dependencies:**
-- Needs: LOGIN (from Person 2), UPLOAD (from Person 1 for testing)
+- Needs: ✅ LOGIN (from Person 2) - READY!, UPLOAD (from Person 1 for testing)
 - Blocks: None
 
 ---
@@ -134,9 +134,9 @@
 | tcp_send/receive | ✅ | ✅ | ✅ | ✅ | Stream handling works |
 | Data loading | ✅ | N/A | ✅ | ✅ | Loads accounts, groups, etc. |
 | **Authentication** |
-| REGISTER | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| LOGIN | 🔜 | 🔜 | ⏸️ | ⏸️ | **CRITICAL** |
-| LOGOUT | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| REGISTER | ✅ | ✅ | ✅ | ✅ | Supports error codes: 120, 501, 403, 504 |
+| LOGIN | ✅ | ✅ | ✅ | ✅ | Supports error codes: 110, 401, 402, 403 |
+| LOGOUT | ✅ | ✅ | ✅ | ✅ | Supports error codes: 130, 400 |
 | **Group Management** |
 | CREATE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | JOIN | 🔜 | 🔜 | ⏸️ | ⏸️ | |
@@ -194,6 +194,43 @@ None yet.
 
 ---
 
+### 2024-12-14 - Phase 1 Complete! 🎉
+
+**Admin (Auth & Basic Group):**
+
+**Completed:**
+- ✅ REGISTER (server + client) - Full implementation with validation
+- ✅ LOGIN (server + client) - Thread-safe with mutex
+- ✅ LOGOUT (server + client) - Proper cleanup
+- ✅ Added error code 504 for internal server errors
+- ✅ Client-side login status tracking for better UX
+- ✅ All functions tested and working
+
+**Testing:**
+- ✅ Register new accounts
+- ✅ Login with correct/wrong credentials
+- ✅ Logout successfully
+- ✅ Error handling (duplicate username, wrong password, etc.)
+- ✅ Thread-safe with multiple concurrent clients
+- ✅ Data persistence (accounts saved to file)
+
+**In Progress:**
+- Nothing
+
+**Blockers:**
+- None
+
+**Next:**
+- Phase 2: CREATE, LIST_GROUPS
+- Phase 3: JOIN, APPROVE, LIST_MEMBERS, LIST_REQUESTS
+
+**Notes:**
+- LOGIN is now ready! Person 1 and Person 3 can start their work!
+- All authentication features are thread-safe
+- Logging implemented for all auth operations
+
+---
+
 ### [ADD YOUR UPDATES BELOW]
 
 **Format:**
@@ -220,15 +257,17 @@ None yet.
 
 | Week | Person 1 | Person 2 | Person 3 | Total |
 |------|----------|----------|----------|-------|
-| Week 1 | 0 | 0 | 0 | 0 |
+| Week 1 | 0 | 6 ✅ | 0 | 6 |
 
 **Target:** 30 tasks total (10 per person)
+
+**Person 2 Progress:** 6/13 tasks (46%) - REGISTER, LOGIN, LOGOUT (server + client)
 
 ---
 
 ## 🎯 MILESTONES
 
-- [ ] **Milestone 1:** Authentication working (REGISTER, LOGIN, LOGOUT)
+- [x] **Milestone 1:** Authentication working (REGISTER, LOGIN, LOGOUT) ✅
 - [ ] **Milestone 2:** Group creation and listing (CREATE, LIST_GROUPS)
 - [ ] **Milestone 3:** Group join flow (JOIN, APPROVE, LIST_MEMBERS)
 - [ ] **Milestone 4:** File transfer (UPLOAD, DOWNLOAD)
