@@ -132,8 +132,42 @@ void do_download(int sockfd, conn_state_t *state) {
 }
 
 void do_create_group(int sockfd, conn_state_t *state) {
-    // TODO: Implement create group
-    printf("Function not implemented yet\n");
+    char group_name[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    printf("\n=== CREATE NEW GROUP ===\n");
+    printf("Enter group name (less than 50 chars): ");
+    if (fgets(group_name, sizeof(group_name), stdin) == NULL) {
+        return;
+    }
+    group_name[strcspn(group_name, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(group_name) == 0) {
+        printf(">> Group name cannot be empty\n");
+        return;
+    }
+    
+    /* Check for spaces in group name */
+    if (strchr(group_name, ' ') != NULL) {
+        printf(">> Group name cannot contain spaces\n");
+        return;
+    }
+    
+    /* Send CREATE command */
+    snprintf(command, sizeof(command), "CREATE %s", group_name);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_join_group(int sockfd, conn_state_t *state) {

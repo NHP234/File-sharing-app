@@ -14,8 +14,88 @@
  *   300: Syntax error
  **/
 void handle_create_group(conn_state_t *state, char *command) {
-    // TODO: Implement create group
-    tcp_send(state->sockfd, "300");
+    char group_name[MAX_GROUPNAME];
+    
+    /* Check if logged in */
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+    
+    /* Parse command */
+    if (sscanf(command, "CREATE %s", group_name) != 1) {
+        tcp_send(state->sockfd, "300");
+        return;
+    }
+    
+    /* Validate group name */
+    if (strlen(group_name) == 0 || strlen(group_name) >= MAX_GROUPNAME) {
+        tcp_send(state->sockfd, "300");
+        return;
+    }
+    
+    /* Check if user already in a group */
+    if (state->user_group_id != -1) {
+        tcp_send(state->sockfd, "407");
+        return;
+    }
+    
+    pthread_mutex_lock(&group_mutex);
+    
+    /* Check if group name already exists */
+    for (int i = 0; i < group_count; i++) {
+        if (strcmp(groups[i].group_name, group_name) == 0) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "501");
+            return;
+        }
+    }
+    
+    /* Check if group limit reached */
+    if (group_count >= MAX_GROUPS) {
+        pthread_mutex_unlock(&group_mutex);
+        tcp_send(state->sockfd, "504");
+        return;
+    }
+    
+    /* Get next group ID */
+    int new_group_id = get_next_group_id();
+    
+    /* Create new group */
+    groups[group_count].group_id = new_group_id;
+    strcpy(groups[group_count].group_name, group_name);
+    strcpy(groups[group_count].leader, state->logged_user);
+    group_count++;
+    
+    /* Save groups to file */
+    save_groups();
+    
+    pthread_mutex_unlock(&group_mutex);
+    
+    /* Update user's group_id in accounts */
+    pthread_mutex_lock(&account_mutex);
+    for (int i = 0; i < account_count; i++) {
+        if (strcmp(accounts[i].username, state->logged_user) == 0) {
+            accounts[i].group_id = new_group_id;
+            state->user_group_id = new_group_id;
+            break;
+        }
+    }
+    save_accounts();
+    pthread_mutex_unlock(&account_mutex);
+    
+    /* Create group folder */
+    char folder_path[MAX_PATH];
+    snprintf(folder_path, sizeof(folder_path), "groups/%s", group_name);
+    mkdir(folder_path, 0755);
+    
+    /* Log the group creation */
+    char log_msg[256];
+    snprintf(log_msg, sizeof(log_msg), "Group created: %s by %s", group_name, state->logged_user);
+    write_log(log_msg);
+    
+    tcp_send(state->sockfd, "202");
+    printf("Group created: %s by %s (ID: %d)\n", group_name, state->logged_user, new_group_id);
 }
 
 /**
