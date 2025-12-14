@@ -128,7 +128,7 @@ Xem chi tiết trong `Docs/Protocols.md`
 - **2xx**: Operation success (140-225)
 - **3xx**: Syntax errors (300)
 - **4xx**: Client errors (400-408)
-- **5xx**: Server errors (500-503)
+- **5xx**: Server errors (500-504)
 
 ## Progress Tracking
 

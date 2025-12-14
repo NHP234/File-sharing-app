@@ -141,6 +141,8 @@ void print_response(char *response) {
         printf(">> Error: File write error on server\n");
     } else if (strcmp(code, "503") == 0) {
         printf(">> Error: Invalid destination path\n");
+    } else if (strcmp(code, "504") == 0) {
+        printf(">> Error: Internal server error\n");
     } else {
         printf(">> Response: %s\n", response);
     }

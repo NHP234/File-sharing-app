@@ -4,7 +4,7 @@
 | :---- | :---- | :---- |
 | Kết nối server | (Client kết nối) | 100: Kết nối thành công |
 | Đăng nhập | LOGIN \<user\> \<pass\> | 110: Đăng nhập thành công 401: Tài khoản hoặc mật khẩu sai 402: Tài khoản không tồn tại 403: Phiên đã được đăng nhập trước đó 300: Sai cú pháp |
-| Đăng ký | REGISTER \<user\> \<pass\> | 120: Đăng ký thành công 501: Username đã tồn tại 403: Phiên đã được đăng nhập 300: Sai cú pháp |
+| Đăng ký | REGISTER \<user\> \<pass\> | 120: Đăng ký thành công 501: Username đã tồn tại 403: Phiên đã được đăng nhập 300: Sai cú pháp 504: Lỗi hệ thống|
 | Đăng xuất | LOGOUT | 130: Đăng xuất thành công 400: Chưa đăng nhập 300: Sai cú pháp |
 | Upload file | UPLOAD \<path\> \<size\> | 140: Upload thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 502: Lỗi ghi file trên server 300: Sai cú pháp |
 | Download file | DOWNLOAD \<path\> | 150: Download thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 500: File không tồn tại 300: Sai cú pháp |
