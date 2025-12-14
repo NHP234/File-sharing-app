@@ -1,0 +1,16 @@
+[08/12/2025 09:17:57]$127.0.0.1:35584$+OK Welcome to file server
+[08/12/2025 09:18:22]$127.0.0.1:35584$USER tungbt\r\n$+OK Login successful
+[08/12/2025 09:18:30]$127.0.0.1:35584$UPLOAD IT4062_LapTrinhMang_LectureNotes-1.pdf 5561024\r\n$+OK Successful upload
+[08/12/2025 09:28:26]$127.0.0.1:35584$UPLOAD LeThaiSon_20225919_HW6 4096\r\n$-ERR Connection lost
+[08/12/2025 09:31:27]$127.0.0.1:44878$+OK Welcome to file server
+[08/12/2025 09:31:31]$127.0.0.1:44878$USER admin\r\n$+OK Login successful
+[08/12/2025 09:32:56]$127.0.0.1:44176$+OK Welcome to file server
+[08/12/2025 09:32:59]$127.0.0.1:44176$USER tungbt\r\n$+OK Login successful
+[08/12/2025 09:36:39]$127.0.0.1:59548$+OK Welcome to file server
+[08/12/2025 09:36:43]$127.0.0.1:59548$USER admin\r\n$+OK Login successful
+[08/12/2025 09:47:29]$127.0.0.1:59548$UPLOAD LeThaiSon_20225919_HW6 14\r\n$-ERR File write error
+[08/12/2025 09:53:56]$127.0.0.1:59548$UPLOAD server_storage 11\r\n$+OK Successful upload
+[08/12/2025 09:57:31]$127.0.0.1:59548$UPLOAD LeThaiSon_20225919_HW6 14\r\n$-ERR File write error
+[08/12/2025 10:06:41]$127.0.0.1:52138$+OK Welcome to file server
+[08/12/2025 10:06:43]$127.0.0.1:52138$USER admin\r\n$+OK Login successful
+[08/12/2025 10:06:57]$127.0.0.1:52138$UPLOAD LeThaiSon_20225919_HW6 14\r\n$-ERR File write error
