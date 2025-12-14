@@ -359,6 +359,7 @@ void handle_move_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "213"); // Success
 
         char log_msg[BUFF_SIZE];
+        snprintf(log_msg, sizeof(log_msg), "",
                  state->logged_user, src_path, dest_dir);
         write_log(log_msg);
     } else {
