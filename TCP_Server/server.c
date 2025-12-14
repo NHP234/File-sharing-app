@@ -18,7 +18,9 @@
 
 #define BUFF_SIZE 4096
 #define MAX_ACCOUNTS 100
+#define MAX_GROUPS 50
 #define MAX_USERNAME 50
+#define MAX_GROUPNAME 100
 #define BACKLOG 20
 
 /* Account structure */
@@ -28,6 +30,13 @@ typedef struct {
     int logged_in;
     int group_id;
 } account_t;
+
+/* Group structure */
+typedef struct {
+    int group_id;
+    char group_name[MAX_GROUPNAME];
+    char leader_name[MAX_USERNAME];
+} group_t;
 
 /* Connection state for each client */
 typedef struct {
@@ -43,16 +52,130 @@ typedef struct {
 /* Global variables */
 account_t accounts[MAX_ACCOUNTS];
 int account_count = 0;
+group_t groups[MAX_GROUPS];
+int group_count = 0;
 pthread_mutex_t account_mutex = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Function prototypes */
 void load_accounts();
+void load_groups();
 int tcp_send(int sockfd, char *msg);
 int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len);
 void *handle_client(void *arg);
 void process_command(conn_state_t *state, char *command);
 void write_log(const char *client_addr, const char *request, const char *result);
+int is_group_leader(const char *username);
+char* role_based_access_control(const char *command, conn_state_t *state);
+
+/**
+ * @function load_groups: Load groups from file into memory
+ * @param: None
+ * @return: None
+ **/
+void load_groups() {
+    FILE *f = fopen("TCP_Server/group.txt", "r");
+    if (f == NULL) {
+        perror("Cannot open TCP_Server/group.txt");
+        group_count = 0;
+        return;
+    }
+    
+    group_count = 0;
+    while (fscanf(f, "%d %s %s", &groups[group_count].group_id,
+                  groups[group_count].group_name,
+                  groups[group_count].leader_name) == 3) {
+        group_count++;
+        if (group_count >= MAX_GROUPS) break;
+    }
+    
+    fclose(f);
+    printf("Loaded %d groups\n", group_count);
+}
+
+/**
+ * @function is_group_leader: Check if a user is a group leader
+ * @param username: Username to check
+ * @return: group_id if user is leader, -1 otherwise
+ */
+int is_group_leader(const char *username) {
+    for (int i = 0; i < group_count; i++) {
+        if (strcmp(groups[i].leader_name, username) == 0) {
+            return groups[i].group_id;
+        }
+    }
+    return -1;
+}
+
+/**
+ * @function role_based_access_control: Check if user has permission to execute command
+ * @param command: Command string (first word only, e.g., "UPLOAD", "DOWNLOAD")
+ * @param state: Connection state of the client
+ * @return: NULL if allowed, error code string ("400", "404", "406") if not allowed
+ *         "400": Not logged in
+ *         "404": Not in any group
+ *         "406": Not group leader
+ */
+char* role_based_access_control(const char *command, conn_state_t *state) {
+    /* Don't require login */
+    if (strcmp(command, "LOGIN") == 0 || strcmp(command, "REGISTER") == 0) {
+        return NULL;
+    }
+    
+    /* Require login */
+    if (!state->is_logged_in) {
+        return "400";
+    }
+    
+    /* Only require login */
+    if (strcmp(command, "JOIN") == 0 ||
+        strcmp(command, "ACCEPT") == 0 ||
+        strcmp(command, "CREATE") == 0 ||
+        strcmp(command, "LIST_GROUPS") == 0 ||
+        strcmp(command, "LOGOUT") == 0) {
+        return NULL;
+    }
+    
+    /* Require login + being in a group */
+    if (strcmp(command, "UPLOAD") == 0 ||
+        strcmp(command, "DOWNLOAD") == 0 ||
+        strcmp(command, "LEAVE") == 0 ||
+        strcmp(command, "LIST_MEMBERS") == 0 ||
+        strcmp(command, "COPY_FILE") == 0 ||
+        strcmp(command, "MOVE_FILE") == 0 ||
+        strcmp(command, "MKDIR") == 0 ||
+        strcmp(command, "COPY_FOLDER") == 0 ||
+        strcmp(command, "MOVE_FOLDER") == 0 ||
+        strcmp(command, "LIST_CONTENT") == 0) {
+        
+        if (state->current_group_id == -1) {
+            return "404";
+        }
+        return NULL;
+    }
+    
+    /* Require login + being in a group + being group leader */
+    if (strcmp(command, "APPROVE") == 0 ||
+        strcmp(command, "INVITE") == 0 ||
+        strcmp(command, "KICK") == 0 ||
+        strcmp(command, "LIST_REQUESTS") == 0 ||
+        strcmp(command, "RENAME_FILE") == 0 ||
+        strcmp(command, "DELETE_FILE") == 0 ||
+        strcmp(command, "RENAME_FOLDER") == 0 ||
+        strcmp(command, "RMDIR") == 0) {
+        
+        if (state->current_group_id == -1) {
+            return "404";
+        }
+        if (is_group_leader(state->logged_user) != state->current_group_id) {
+            return "406";
+        }
+        return NULL;
+    }
+    
+    /* Unknown command */
+    return NULL;
+}
 
 /**
  * @function get_log_filename: Generate log filename based on current date
@@ -209,14 +332,22 @@ void check_and_create_dir() {
 /**
  * @function get_file_size: Get size of a file
  * @param filename: Path to file
- * @return: File size in bytes, or -1 if error
+ * @return: File size in bytes, or < 0  if error
  */
 long long get_file_size(const char *filename) {
     struct stat st;
     if (stat(filename, &st) == 0) {
-        return st.st_size;
+        // Check if it's a regular file (Not a directory, not symlink, device, ...)
+        if (S_ISREG(st.st_mode)) {
+            return st.st_size;
+        }
+        // If it's a directory
+        if (S_ISDIR(st.st_mode)) {
+            return -2; 
+        }
+        return -3; // Other file types (symlink, device, etc.)
     }
-    return -1;
+    return -1; // File does not exist or cannot access
 }
 
 /**
@@ -441,13 +572,9 @@ void process_command(conn_state_t *state, char *command) {
     }
     /* Handle UPLOAD command */
     else if (strcmp(cmd, "UPLOAD") == 0) {
-        if (!state->is_logged_in) {
-            tcp_send(state->sockfd, "400"); 
-            return;
-        }
-
-        if (state->current_group_id == -1) {
-            tcp_send(state->sockfd, "404"); 
+        char *access_error = role_based_access_control("UPLOAD", state);
+        if (access_error != NULL) {
+            tcp_send(state->sockfd, access_error);
             return;
         }
 
@@ -465,8 +592,8 @@ void process_command(conn_state_t *state, char *command) {
 
         FILE *fp = fopen(filepath, "wb");
         if (fp == NULL) {
-            tcp_send(state->sockfd, "502"); 
-            write_log(state->client_addr, command, "-ERR File write error");
+            tcp_send(state->sockfd, "503"); 
+            write_log(state->client_addr, command, "-ERR Cannot create file");
             return;
         }
         tcp_send(state->sockfd, "141");
@@ -485,13 +612,9 @@ void process_command(conn_state_t *state, char *command) {
         }
     } 
     else if (strcmp(cmd, "DOWNLOAD") == 0) {
-        if (!state->is_logged_in) {
-            tcp_send(state->sockfd, "400"); 
-            return;
-        }
-
-        if (state->current_group_id == -1) {
-            tcp_send(state->sockfd, "404");
+        char *access_error = role_based_access_control("DOWNLOAD", state);
+        if (access_error != NULL) {
+            tcp_send(state->sockfd, access_error);
             return;
         }
 
@@ -505,8 +628,18 @@ void process_command(conn_state_t *state, char *command) {
         snprintf(filepath, sizeof(filepath), "%s/%s", STORAGE_DIR, arg);
         
         long long filesize = get_file_size(filepath);
-        if (filesize < 0) {
+        if (filesize == -1) {
             tcp_send(state->sockfd, "500");
+            return;
+        }
+
+        if (filesize == -2) {
+            tcp_send(state->sockfd, "504");
+            return;
+        }
+
+        if (filesize == -3) {
+            tcp_send(state->sockfd, "700"); //Unknown error
             return;
         }
 
@@ -593,6 +726,7 @@ int main(int argc, char *argv[]) {
     port = atoi(argv[1]);
     
     load_accounts();
+    load_groups();
     
     /* Create socket */
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {

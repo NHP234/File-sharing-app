@@ -24,17 +24,17 @@ void print_response(char *code);
 long long get_file_size(const char *filename) {
     struct stat st;
     if (stat(filename, &st) == 0) {
-        // Kiểm tra xem có phải là file thường không (không phải thư mục, symlink, etc.)
+        // Check if it's a regular file (Not a directory, not symlink, device, ...)
         if (S_ISREG(st.st_mode)) {
             return st.st_size;
         }
-        // Nếu là thư mục hoặc loại file khác, trả về -2 để phân biệt
+        // If it's a directory
         if (S_ISDIR(st.st_mode)) {
-            return -2; // Là thư mục
+            return -2; 
         }
-        return -3; // Là loại file khác (symlink, device, etc.)
+        return -3; // Other file types (symlink, device, etc.)
     }
-    return -1; // File không tồn tại hoặc không thể truy cập
+    return -1; // File does not exist or cannot access
 }
 
 /**
@@ -142,7 +142,6 @@ void handle_upload(int sockfd, conn_state_t *state) {
     if (fgets(filepath, sizeof(filepath), stdin) == NULL) return;
     filepath[strcspn(filepath, "\n")] = 0;
 
-    printf("Hello\n");
     filesize = get_file_size(filepath);
     if (filesize == -1) {
         printf("Error: File not found or cannot access.\n");
@@ -156,7 +155,6 @@ void handle_upload(int sockfd, conn_state_t *state) {
         printf("Error: '%s' is not a regular file.\n", filepath);
         return;
     }
-    printf("Hello2\n");
 
     char *filename = basename(filepath);
     char command[BUFF_SIZE];
@@ -281,13 +279,7 @@ void handle_download(int sockfd, conn_state_t *state) {
         print_response(buffer); return;
     }
 
-    if (code == 400) {
-        printf(">> Error: Please login first.\n");
-        return;
-    } else if (code == 500) {
-        printf(">> Error: File not found on server.\n");
-        return;
-    } else if (code == 151) {
+    if (code == 151) {
         sscanf(buffer, "151 %lld", &filesize);
         printf("File found. Size: %lld bytes. Downloading...\n", filesize);
 
@@ -295,11 +287,7 @@ void handle_download(int sockfd, conn_state_t *state) {
             printf("File saved as: %s\n", filename);
             
             if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) > 0) {
-                if (strcmp(buffer, "150") == 0) {
-                    printf(">> Download successfully completed.\n");
-                } else {
-                    printf(">> Warning: Unexpected response after download: %s\n", buffer);
-                }
+                print_response(buffer);
             }
         } else {
             printf(">> Error during download.\n");
@@ -355,8 +343,16 @@ void print_response(char *code) {
         printf(">> Error: You are not in any group. Please join or create a group first.\n");
     } else if (strcmp(code, "502") == 0) {
         printf(">> Error: Server could not save file.\n");
+    } else if (strcmp(code, "503") == 0) {
+        printf(">> Error: The file's name has been used for a folder on server. Please choose a different name.\n");
+    } else if (strcmp(code, "504") == 0) {
+        printf(">> Error: Cannot download a folder.\n");
+    }else if (strcmp(code, "500") == 0) {
+        printf(">> Error: File not found on server.\n");
+    } else if (strcmp(code, "150") == 0) {
+        printf(">> Download successfully completed.\n");
     } else {
-        printf(">> Response: %s\n", code);
+        printf("Unknown error.\n");
     }
 }
 
