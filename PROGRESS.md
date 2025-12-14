@@ -80,25 +80,31 @@
 
 ## 🎯 Người 3: File System & Admin (Hệ thống File & Quản trị nâng cao)
 
-**Status:** Waiting  
+**Status:** Server Implementation Complete ✅  
 **Files:** `folder_ops.c`, `file_ops.c`, `group.c`, `TCP_Client/commands.c`
 
 | Task | Status | Notes |
 |------|--------|-------|
-| MKDIR (server) | 🔜 Todo | Can start after LOGIN |
+| MKDIR (server) | ✅ Done | Implemented with path resolution |
 | MKDIR (client) | 🔜 Todo | |
-| LIST_CONTENT (server) | 🔜 Todo | Can start after LOGIN |
+| LIST_CONTENT (server) | ✅ Done | Returns file/folder listing |
 | LIST_CONTENT (client) | 🔜 Todo | |
-| RENAME_FILE (server) | 🔜 Todo | Need UPLOAD first for testing |
+| RENAME_FILE (server) | ✅ Done | Leader only, with checks |
 | RENAME_FILE (client) | 🔜 Todo | |
-| DELETE_FILE (server) | 🔜 Todo | Need UPLOAD first for testing |
+| DELETE_FILE (server) | ✅ Done | Leader only, uses unlink |
 | DELETE_FILE (client) | 🔜 Todo | |
-| COPY_FILE (server) | 🔜 Todo | |
+| COPY_FILE (server) | ✅ Done | With file locking |
 | COPY_FILE (client) | 🔜 Todo | |
-| MOVE_FILE (server) | 🔜 Todo | |
+| MOVE_FILE (server) | ✅ Done | Moves to destination folder |
 | MOVE_FILE (client) | 🔜 Todo | |
-| RENAME_FOLDER (server) | 🔜 Todo | |
+| RENAME_FOLDER (server) | ✅ Done | Leader only, with checks |
 | RENAME_FOLDER (client) | 🔜 Todo | |
+| RMDIR (server) | ✅ Done | Leader only, recursive delete |
+| RMDIR (client) | 🔜 Todo | |
+| COPY_FOLDER (server) | ✅ Done | Recursive copy with cp -r |
+| COPY_FOLDER (client) | 🔜 Todo | |
+| MOVE_FOLDER (server) | ✅ Done | Moves to destination folder |
+| MOVE_FOLDER (client) | 🔜 Todo | |
 | RMDIR (server) | 🔜 Todo | |
 | RMDIR (client) | 🔜 Todo | |
 | COPY_FOLDER (server) | 🔜 Todo | |
@@ -111,13 +117,14 @@
 | KICK (client) | 🔜 Todo | |
 
 **Blockers:** 
-- Waiting for LOGIN/CREATE from Person 2
-- File operations need UPLOAD from Person 1 for testing
+- Need LOGIN/CREATE from Person 2 for full integration testing
+- Need client implementation to complete user-facing features
 
 **Next Steps:**
-1. Can start MKDIR and LIST_CONTENT (only need LOGIN)
-2. Wait for UPLOAD to implement file operations
-3. Implement INVITE/KICK after CREATE is ready
+1. ✅ All server-side implementations COMPLETE
+2. 🔜 Implement all client-side do_* functions in TCP_Client/commands.c
+3. 🔜 Integration testing with Person 2's AUTH features
+4. 🔜 Full system testing when all components are ready
 
 **Dependencies:**
 - Needs: LOGIN (from Person 2), UPLOAD (from Person 1 for testing)
@@ -154,17 +161,17 @@
 | UPLOAD | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | DOWNLOAD | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | **File Operations** |
-| MKDIR | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| LIST_CONTENT | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| RENAME_FILE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| DELETE_FILE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| COPY_FILE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| MOVE_FILE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| MKDIR | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
+| LIST_CONTENT | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
+| RENAME_FILE | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
+| DELETE_FILE | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
+| COPY_FILE | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
+| MOVE_FILE | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
 | **Folder Operations** |
-| RENAME_FOLDER | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| RMDIR | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| COPY_FOLDER | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| MOVE_FOLDER | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| RENAME_FOLDER | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
+| RMDIR | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
+| COPY_FOLDER | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
+| MOVE_FOLDER | ✅ | 🔜 | ⏸️ | ⏸️ | Server done |
 
 **Legend:**
 - ✅ Done
@@ -208,6 +215,44 @@ None yet.
 
 **Next:**
 - Implement client side commands for INVITE, ACCEPT, KICK
+
+---
+
+### 2024-12-14 16:00 - Person 3 (File System & Admin)
+
+**Completed:**
+- ✅ Implemented ALL server-side file operations:
+  - handle_rename_file (with leader check, file locking)
+  - handle_delete_file (leader only, uses unlink)
+  - handle_copy_file (with file locking for thread safety)
+  - handle_move_file (validates destination folder)
+  
+- ✅ Implemented ALL server-side folder operations:
+  - handle_mkdir (creates folders with permission checks)
+  - handle_rename_folder (leader only, checks for existing names)
+  - handle_rmdir (leader only, recursive delete)
+  - handle_copy_folder (recursive copy using cp -r)
+  - handle_move_folder (validates destination)
+  - handle_list_content (returns file/folder listing with / suffix for dirs)
+
+**Implementation Details:**
+- Added helper functions: resolve_path(), ensure_group_dir(), file_lock()
+- All functions check: logged_in (400), in_group (404), leader (406 where needed)
+- Proper path resolution with directory traversal prevention (blocks "..")
+- File operations use F_RDLCK/F_WRLCK for thread-safe read/write
+- Comprehensive logging for all operations
+- Response codes follow Protocols.md exactly
+
+**In Progress:**
+- All server-side implementations COMPLETE ✅
+
+**Blockers:**
+- Need LOGIN/CREATE from Person 2 for integration testing
+- Cannot test without auth system
+
+**Next:**
+- Implement client-side do_* functions in TCP_Client/commands.c
+- Integration testing once Person 2 completes AUTH
 
 **Format:**
 ```markdown
