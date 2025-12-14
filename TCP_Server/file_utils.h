@@ -10,10 +10,12 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <fcntl.h>
 
 #define BUFF_SIZE 4096
 #define MAX_USERNAME 50
 #define MAX_PATH 1024
+#define MAX_GROUPS 100
 
 /* Shared Connection State Structure */
 typedef struct {
@@ -26,6 +28,16 @@ typedef struct {
     char client_addr[50];
 } conn_state_t;
 
+
+typedef struct {
+	int id;
+	char name[50];
+	char admin_username[MAX_USERNAME];
+} group_t;
+
+extern group_t groups[MAX_GROUPS];
+extern int group_count;
+
 /**
  * @function load_groups_from_file: Load group info (id, name, admin) from group.txt
  * @param: None
@@ -34,7 +46,16 @@ typedef struct {
 void load_groups_from_file();
 
 /**
- * @function handle_mkdir: Create directory with permission checks
+ * @function file_lock: Apply lock to a file descriptor
+ * @param fd: File descriptor
+ * @param type: F_RDLCK (Read/Shared) or F_WRLCK (Write/Exclusive) or F_UNLCK
+ * @return: 0 on success, -1 on error
+ **/
+int file_lock(int fd, int type);
+
+
+/**
+ * @function handle_mkdir: Create directory
  * @param state: Client connection state
  * @param path: Relative path to create
  * @return: Protocol code (220, 400, 404, 501, 500)
@@ -68,7 +89,7 @@ int handle_rename(conn_state_t *state, char *old_name, char *new_name);
 int handle_remove(conn_state_t *state, char *path);
 
 /**
- * @function handle_move: Move file/folder (No rename allowed)
+ * @function handle_move: Move file/folder
  * @param state: Client connection state
  * @param src_path: Source relative path
  * @param dest_dir: Destination relative folder

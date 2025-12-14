@@ -4,8 +4,8 @@ CFLAGS = -Wall -Wextra -g -std=c99
 LDFLAGS = -pthread # <--- Thêm cờ linker (bao gồm -pthread) ở đây
 
 # Đường dẫn đến mã nguồn
-CLIENT_SRC = TCP_Client/client.c
-SERVER_SRC = TCP_Server/server.c
+CLIENT_SRC = TCP_Client/client.c 
+SERVER_SRC = TCP_Server/server.c TCP_Server/file_utils.c
 
 # Tên file thực thi
 CLIENT_TARGET = client
