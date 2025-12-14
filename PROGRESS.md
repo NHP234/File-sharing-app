@@ -105,9 +105,9 @@
 | COPY_FOLDER (client) | 🔜 Todo | |
 | MOVE_FOLDER (server) | 🔜 Todo | |
 | MOVE_FOLDER (client) | 🔜 Todo | |
-| INVITE (server) | 🔜 Todo | Need CREATE from Person 2 |
+| INVITE (server) | ✅ Done | Implemented handle_invite |
 | INVITE (client) | 🔜 Todo | |
-| KICK (server) | 🔜 Todo | Need CREATE from Person 2 |
+| KICK (server) | ✅ Done | Implemented handle_kick |
 | KICK (client) | 🔜 Todo | |
 
 **Blockers:** 
@@ -141,10 +141,10 @@
 | CREATE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | JOIN | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | APPROVE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| INVITE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| ACCEPT | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| INVITE | ✅ | 🔜 | ⏸️ | ⏸️ | |
+| ACCEPT | ✅ | 🔜 | ⏸️ | ⏸️ | |
 | LEAVE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| KICK | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| KICK | ✅ | 🔜 | ⏸️ | ⏸️ | |
 | LIST_GROUPS | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | LIST_MEMBERS | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | LIST_REQUESTS | 🔜 | 🔜 | ⏸️ | ⏸️ | |
@@ -195,6 +195,19 @@ None yet.
 ---
 
 ### [ADD YOUR UPDATES BELOW]
+
+### 2024-12-14 10:00 - Person 3 (File System & Admin)
+
+**Completed:**
+- Implemented handle_invite (server)
+- Implemented handle_accept (server)
+- Implemented handle_kick (server)
+
+**In Progress:**
+- Waiting for other components to test
+
+**Next:**
+- Implement client side commands for INVITE, ACCEPT, KICK
 
 **Format:**
 ```markdown
