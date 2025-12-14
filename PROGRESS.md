@@ -49,14 +49,14 @@
 | LOGIN (client) | ✅ Done | Updates is_logged_in status |
 | LOGOUT (server) | ✅ Done | Tested - works with error codes 130, 400 |
 | LOGOUT (client) | ✅ Done | Clears login status |
-| CREATE (server) | 🔜 Todo | Depends on LOGIN |
-| CREATE (client) | 🔜 Todo | |
+| CREATE (server) | ✅ Done | Creates group, assigns leader, creates folder |
+| CREATE (client) | ✅ Done | Validates group name (no spaces) |
 | JOIN (server) | 🔜 Todo | |
 | JOIN (client) | 🔜 Todo | |
 | APPROVE (server) | 🔜 Todo | |
 | APPROVE (client) | 🔜 Todo | |
-| LIST_GROUPS (server) | 🔜 Todo | |
-| LIST_GROUPS (client) | 🔜 Todo | |
+| LIST_GROUPS (server) | ✅ Done | Shows all groups with ID, name, leader |
+| LIST_GROUPS (client) | ✅ Done | Simple UI |
 | LIST_MEMBERS (server) | 🔜 Todo | |
 | LIST_MEMBERS (client) | 🔜 Todo | |
 | LIST_REQUESTS (server) | 🔜 Todo | |
@@ -68,8 +68,8 @@
 
 **Next Steps:**
 1. ✅ **Phase 1:** REGISTER, LOGIN, LOGOUT - COMPLETED!
-2. 🔜 **Phase 2:** CREATE, LIST_GROUPS
-3. 🔜 **Phase 3:** JOIN, APPROVE, LIST_MEMBERS, LIST_REQUESTS
+2. ✅ **Phase 2:** CREATE, LIST_GROUPS - COMPLETED!
+3. ⏳ **Phase 3:** JOIN, APPROVE, LIST_MEMBERS, LIST_REQUESTS (next)
 4. 🔜 **Phase 4:** LEAVE
 
 **Dependencies:**
@@ -138,14 +138,14 @@
 | LOGIN | ✅ | ✅ | ✅ | ✅ | Supports error codes: 110, 401, 402, 403 |
 | LOGOUT | ✅ | ✅ | ✅ | ✅ | Supports error codes: 130, 400 |
 | **Group Management** |
-| CREATE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| CREATE | ✅ | ✅ | ✅ | ✅ | Error codes: 202, 400, 407, 501, 504 |
 | JOIN | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | APPROVE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | INVITE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | ACCEPT | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | LEAVE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | KICK | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| LIST_GROUPS | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| LIST_GROUPS | ✅ | ✅ | ✅ | ✅ | Error codes: 203, 400 |
 | LIST_MEMBERS | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | LIST_REQUESTS | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | **File Transfer** |
@@ -180,95 +180,22 @@ None yet.
 
 ---
 
-## 💬 COMMUNICATION LOG
-
-### 2024-12-13 - Initial Setup
-
-**Admin (Auth & Basic Group):**
-- Created modular structure with 7 files per component
-- Setup Makefile for easy compilation
-- Created AGENT_GUIDE.md and PROGRESS.md for team coordination
-- Ready to implement Auth functions
-
-**Status:** Skeleton code complete, ready for implementation!
-
----
-
-### 2024-12-14 - Phase 1 Complete! 🎉
-
-**Admin (Auth & Basic Group):**
-
-**Completed:**
-- ✅ REGISTER (server + client) - Full implementation with validation
-- ✅ LOGIN (server + client) - Thread-safe with mutex
-- ✅ LOGOUT (server + client) - Proper cleanup
-- ✅ Added error code 504 for internal server errors
-- ✅ Client-side login status tracking for better UX
-- ✅ All functions tested and working
-
-**Testing:**
-- ✅ Register new accounts
-- ✅ Login with correct/wrong credentials
-- ✅ Logout successfully
-- ✅ Error handling (duplicate username, wrong password, etc.)
-- ✅ Thread-safe with multiple concurrent clients
-- ✅ Data persistence (accounts saved to file)
-
-**In Progress:**
-- Nothing
-
-**Blockers:**
-- None
-
-**Next:**
-- Phase 2: CREATE, LIST_GROUPS
-- Phase 3: JOIN, APPROVE, LIST_MEMBERS, LIST_REQUESTS
-
-**Notes:**
-- LOGIN is now ready! Person 1 and Person 3 can start their work!
-- All authentication features are thread-safe
-- Logging implemented for all auth operations
-
----
-
-### [ADD YOUR UPDATES BELOW]
-
-**Format:**
-```markdown
-### YYYY-MM-DD HH:MM - [Your Name] ([Your Role])
-
-**Completed:**
-- Task 1
-- Task 2
-
-**In Progress:**
-- Task 3
-
-**Blockers:**
-- Issue 1
-
-**Next:**
-- Plan 1
-```
-
----
-
 ## 📈 VELOCITY TRACKING
 
 | Week | Person 1 | Person 2 | Person 3 | Total |
 |------|----------|----------|----------|-------|
-| Week 1 | 0 | 6 ✅ | 0 | 6 |
+| Week 1 | 0 | 10 ✅ | 0 | 10 |
 
 **Target:** 30 tasks total (10 per person)
 
-**Person 2 Progress:** 6/13 tasks (46%) - REGISTER, LOGIN, LOGOUT (server + client)
+**Person 2 Progress:** 10/13 tasks (77%) - Auth + CREATE + LIST_GROUPS complete
 
 ---
 
 ## 🎯 MILESTONES
 
 - [x] **Milestone 1:** Authentication working (REGISTER, LOGIN, LOGOUT) ✅
-- [ ] **Milestone 2:** Group creation and listing (CREATE, LIST_GROUPS)
+- [x] **Milestone 2:** Group creation and listing (CREATE, LIST_GROUPS) ✅
 - [ ] **Milestone 3:** Group join flow (JOIN, APPROVE, LIST_MEMBERS)
 - [ ] **Milestone 4:** File transfer (UPLOAD, DOWNLOAD)
 - [ ] **Milestone 5:** Basic file operations (MKDIR, LIST_CONTENT)

@@ -201,8 +201,22 @@ void do_kick(int sockfd, conn_state_t *state) {
 }
 
 void do_list_groups(int sockfd, conn_state_t *state) {
-    // TODO: Implement list groups
-    printf("Function not implemented yet\n");
+    char response[BUFF_SIZE];
+    
+    printf("\n=== LIST ALL GROUPS ===\n");
+    
+    /* Send LIST_GROUPS command */
+    if (tcp_send(sockfd, "LIST_GROUPS") <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_list_members(int sockfd, conn_state_t *state) {

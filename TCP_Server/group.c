@@ -203,8 +203,40 @@ void handle_kick(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_list_groups(conn_state_t *state, char *command) {
-    // TODO: Implement list groups
-    tcp_send(state->sockfd, "300");
+    char response[BUFF_SIZE];
+    char temp[256];
+    
+    /* Check if logged in */
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+    
+    pthread_mutex_lock(&group_mutex);
+    
+    /* Build response with list of groups */
+    if (group_count == 0) {
+        snprintf(response, sizeof(response), "203 No groups available");
+    } else {
+        snprintf(response, sizeof(response), "203 ");
+        for (int i = 0; i < group_count; i++) {
+            snprintf(temp, sizeof(temp), "[%d] %s (Leader: %s)", 
+                    groups[i].group_id, 
+                    groups[i].group_name, 
+                    groups[i].leader);
+            
+            /* Add separator if not first item */
+            if (i > 0) {
+                strcat(response, " | ");
+            }
+            strcat(response, temp);
+        }
+    }
+    
+    pthread_mutex_unlock(&group_mutex);
+    
+    tcp_send(state->sockfd, response);
+    printf("User %s listed groups\n", state->logged_user);
 }
 
 /**
