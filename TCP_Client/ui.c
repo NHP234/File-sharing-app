@@ -125,12 +125,10 @@ void print_response(char *response) {
         printf(">> Error: Already logged in\n");
     } else if (strcmp(code, "404") == 0) {
         printf(">> Error: Not in any group\n");
-    } else if (strcmp(code, "405") == 0) {
-        printf(">> Error: Already in this group\n");
     } else if (strcmp(code, "406") == 0) {
         printf(">> Error: Not group leader\n");
     } else if (strcmp(code, "407") == 0) {
-        printf(">> Error: Already in another group\n");
+        printf(">> Error: Already in a group\n");
     } else if (strcmp(code, "408") == 0) {
         printf(">> Error: Leader must remove all members first\n");
     } else if (strcmp(code, "500") == 0) {

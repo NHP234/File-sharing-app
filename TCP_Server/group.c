@@ -105,13 +105,88 @@ void handle_create_group(conn_state_t *state, char *command) {
  * Response codes:
  *   160: Join request sent successfully
  *   400: Not logged in
- *   405: Already in this group
+ *   407: User already in a group
  *   500: Group does not exist
+ *   504: Request list full
  *   300: Syntax error
  **/
 void handle_join_group(conn_state_t *state, char *command) {
-    // TODO: Implement join group
-    tcp_send(state->sockfd, "300");
+    char group_name[MAX_GROUPNAME];
+    
+    /* Check if logged in */
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+    
+    /* Parse command */
+    if (sscanf(command, "JOIN %s", group_name) != 1) {
+        tcp_send(state->sockfd, "300");
+        return;
+    }
+    
+    /* Check if user already in a group */
+    if (state->user_group_id != -1) {
+        tcp_send(state->sockfd, "407");
+        return;
+    }
+    
+    pthread_mutex_lock(&group_mutex);
+    
+    /* Find group by name */
+    int target_group_id = -1;
+    for (int i = 0; i < group_count; i++) {
+        if (strcmp(groups[i].group_name, group_name) == 0) {
+            target_group_id = groups[i].group_id;
+            break;
+        }
+    }
+    
+    /* Group does not exist */
+    if (target_group_id == -1) {
+        pthread_mutex_unlock(&group_mutex);
+        tcp_send(state->sockfd, "500");
+        return;
+    }
+    
+    pthread_mutex_unlock(&group_mutex);
+    
+    pthread_mutex_lock(&request_mutex);
+    
+    /* Check if request already exists */
+    for (int i = 0; i < request_count; i++) {
+        if (strcmp(requests[i].username, state->logged_user) == 0 &&
+            requests[i].group_id == target_group_id) {
+            pthread_mutex_unlock(&request_mutex);
+            tcp_send(state->sockfd, "160");  /* Already sent, but return success */
+            return;
+        }
+    }
+    
+    /* Check if request limit reached */
+    if (request_count >= MAX_REQUESTS) {
+        pthread_mutex_unlock(&request_mutex);
+        tcp_send(state->sockfd, "504");
+        return;
+    }
+    
+    /* Add join request */
+    strcpy(requests[request_count].username, state->logged_user);
+    requests[request_count].group_id = target_group_id;
+    request_count++;
+    
+    /* Save requests to file */
+    save_requests();
+    
+    pthread_mutex_unlock(&request_mutex);
+    
+    /* Log the join request */
+    char log_msg[256];
+    snprintf(log_msg, sizeof(log_msg), "Join request: %s -> %s", state->logged_user, group_name);
+    write_log(log_msg);
+    
+    tcp_send(state->sockfd, "160");
+    printf("Join request: %s -> %s\n", state->logged_user, group_name);
 }
 
 /**
@@ -138,7 +213,7 @@ void handle_approve(conn_state_t *state, char *command) {
  *   180: Invite sent successfully
  *   400: Not logged in
  *   406: Not group leader
- *   405: User already in this group
+ *   407: User already in a group
  *   300: Syntax error
  **/
 void handle_invite(conn_state_t *state, char *command) {

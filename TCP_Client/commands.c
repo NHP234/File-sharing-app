@@ -171,8 +171,36 @@ void do_create_group(int sockfd, conn_state_t *state) {
 }
 
 void do_join_group(int sockfd, conn_state_t *state) {
-    // TODO: Implement join group
-    printf("Function not implemented yet\n");
+    char group_name[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    printf("\n=== JOIN GROUP ===\n");
+    printf("Enter group name: ");
+    if (fgets(group_name, sizeof(group_name), stdin) == NULL) {
+        return;
+    }
+    group_name[strcspn(group_name, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(group_name) == 0) {
+        printf(">> Group name cannot be empty\n");
+        return;
+    }
+    
+    /* Send JOIN command */
+    snprintf(command, sizeof(command), "JOIN %s", group_name);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_approve(int sockfd, conn_state_t *state) {

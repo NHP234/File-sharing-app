@@ -8,13 +8,13 @@
 | Đăng xuất | LOGOUT | 130: Đăng xuất thành công 400: Chưa đăng nhập 300: Sai cú pháp |
 | Upload file | UPLOAD \<path\> \<size\> | 140: Upload thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 502: Lỗi ghi file trên server 300: Sai cú pháp |
 | Download file | DOWNLOAD \<path\> | 150: Download thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 500: File không tồn tại 300: Sai cú pháp |
-| Xin vào nhóm | JOIN \<group\_name\> | 160: Gửi yêu cầu thành công 400: Chưa đăng nhập 405: Đã ở trong nhóm này rồi 500: Nhóm không tồn tại 300: Sai cú pháp |
+| Xin vào nhóm | JOIN \<group\_name\> | 160: Gửi yêu cầu thành công 400: Chưa đăng nhập 407: Đã có nhóm 500: Nhóm không tồn tại 300: Sai cú pháp 504: Lỗi hệ thống |
 | Duyệt thành viên | APPROVE \<username\> | 170: Phê duyệt thành công 400: Chưa đăng nhập 406: Không phải trưởng nhóm 500: Không tìm thấy yêu cầu từ user này 300: Sai cú pháp |
-| Mời vào nhóm | INVITE \<username\> | 180: Gửi lời mời thành công 400: Chưa đăng nhập 406: Không phải trưởng nhóm 405: User này đã ở trong nhóm 300: Sai cú pháp |
+| Mời vào nhóm | INVITE \<username\> | 180: Gửi lời mời thành công 400: Chưa đăng nhập 406: Không phải trưởng nhóm 407: Đã có nhóm 300: Sai cú pháp |
 | Chấp nhận mời | ACCEPT \<group\_name\> | 190: Gia nhập thành công 400: Chưa đăng nhập 407: User hiện tại đang có nhóm khác 300: Sai cú pháp |
 | Rời nhóm | LEAVE | 200: Rời nhóm thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 300: Sai cú pháp |
 | Xóa thành viên | KICK \<username\> | 201: Xóa thành viên thành công 400: Chưa đăng nhập 406: Không phải trưởng nhóm 500: Thành viên không có trong nhóm 300: Sai cú pháp |
-| Tạo nhóm | CREATE \<group\_name\> | 202: Tạo nhóm thành công 400: Chưa đăng nhập 407: User đang ở trong nhóm khác 501: Tên nhóm đã tồn tại 300: Sai cú pháp |
+| Tạo nhóm | CREATE \<group\_name\> | 202: Tạo nhóm thành công 400: Chưa đăng nhập 407: User đang ở trong nhóm khác 501: Tên nhóm đã tồn tại 300: Sai cú pháp 504: Lỗi hệ thống |
 | Xem DS nhóm | LIST\_GROUPS | 203: Trả về danh sách thành công 400: Chưa đăng nhập 300: Sai cú pháp |
 | Xem thành viên | LIST\_MEMBERS | 204: Trả về danh sách thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 300: Sai cú pháp |
 | Xem yêu cầu xin vào | LIST\_REQUESTS | 205: Trả về danh sách yêu cầu 400: Chưa đăng nhập 406: Không phải trưởng nhóm 300: Sai cú pháp |
