@@ -6,8 +6,8 @@
 | Đăng nhập | LOGIN \<user\> \<pass\> | 110: Đăng nhập thành công 401: Tài khoản hoặc mật khẩu sai 402: Tài khoản không tồn tại 403: Phiên đã được đăng nhập trước đó 300: Sai cú pháp |
 | Đăng ký | REGISTER \<user\> \<pass\> | 120: Đăng ký thành công 501: Username đã tồn tại 403: Phiên đã được đăng nhập 300: Sai cú pháp 504: Lỗi hệ thống|
 | Đăng xuất | LOGOUT | 130: Đăng xuất thành công 400: Chưa đăng nhập 300: Sai cú pháp |
-| Upload file | UPLOAD \<path\> \<size\> | 140: Upload thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 502: Lỗi ghi file trên server 300: Sai cú pháp |
-| Download file | DOWNLOAD \<path\> | 150: Download thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 500: File không tồn tại 300: Sai cú pháp |
+| Upload file | UPLOAD \<path\> \<size\> | 141: Sẵn sàng nhận file 140: Upload thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 502: Lỗi ghi file trên server 503: Tên file trùng với folder 300: Sai cú pháp |
+| Download file | DOWNLOAD \<path\> | 151 \<size\>: Sẵn sàng gửi file 150: Download thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 500: File không tồn tại 504: Không thể download folder 300: Sai cú pháp |
 | Xin vào nhóm | JOIN \<group\_name\> | 160: Gửi yêu cầu thành công 400: Chưa đăng nhập 407: Đã có nhóm 500: Nhóm không tồn tại 300: Sai cú pháp 504: Lỗi hệ thống |
 | Duyệt thành viên | APPROVE \<username\> | 170: Phê duyệt thành công 400: Chưa đăng nhập 406: Không phải trưởng nhóm 500: Không tìm thấy yêu cầu từ user này 300: Sai cú pháp |
 | Mời vào nhóm | INVITE \<username\> | 180: Gửi lời mời thành công 400: Chưa đăng nhập 406: Không phải trưởng nhóm 407: Đã có nhóm 300: Sai cú pháp |

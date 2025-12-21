@@ -66,6 +66,7 @@ typedef struct {
     char logged_user[MAX_USERNAME];
     int is_logged_in;
     int user_group_id;      /* Cache of user's group_id */
+    char client_addr[50];   /* Client IP:Port for logging */
 } conn_state_t;
 
 /* ==================== GLOBAL VARIABLES ==================== */
@@ -100,16 +101,21 @@ void save_groups();
 void save_requests();
 void save_invites();
 void write_log(const char *message);
+void write_log_detailed(const char *client_addr, const char *request, const char *result);
+void get_log_filename(char *filename, size_t size);
 int get_next_group_id();
 char* get_group_folder_path(int group_id, char *buffer, int buf_size);
 int is_group_leader(const char *username, int group_id);
 int count_group_members(int group_id);
+char* role_based_access_control(const char *command, conn_state_t *state);
 
 /* network.c - Network I/O functions */
 int tcp_send(int sockfd, char *msg);
 int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len);
-int send_file(int sockfd, const char *filepath);
-int receive_file(int sockfd, const char *filepath, long file_size);
+int send_all(int sockfd, const void *buffer, int length);
+long long get_file_size(const char *filename);
+int send_file_content(int sockfd, const char *filepath);
+int receive_file_content(int sockfd, conn_state_t *state, const char *filepath, long long filesize);
 
 /* auth.c - Authentication command handlers */
 void handle_register(conn_state_t *state, char *command);

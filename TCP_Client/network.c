@@ -76,25 +76,113 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
 }
 
 /**
- * @function send_file: Send a file to server in chunks
+ * @function send_all: Ensure all data in buffer is sent through socket
  * @param sockfd: Socket file descriptor
- * @param filepath: Path to the file to send
+ * @param buffer: Pointer to data to send
+ * @param length: Total bytes to send
  * @return: 0 on success, -1 on error
  **/
-int send_file(int sockfd, const char *filepath) {
-    // TODO: Implement file sending
+int send_all(int sockfd, const void *buffer, int length) {
+    const char *ptr = (const char *)buffer;
+    int total_sent = 0;
+    int bytes_left = length;
+    int n;
+
+    while (total_sent < length) {
+        n = send(sockfd, ptr + total_sent, bytes_left, 0);
+        
+        if (n == -1) {
+            perror("send() error");
+            return -1;
+        }
+        
+        total_sent += n;
+        bytes_left -= n;
+    }
+
     return 0;
 }
 
 /**
- * @function receive_file: Receive a file from server in chunks
- * @param sockfd: Socket file descriptor
- * @param filepath: Path where to save the file
- * @param file_size: Size of the file to receive
- * @return: 0 on success, -1 on error
+ * @function get_file_size: Get size of a file
+ * @param filename: Path to file
+ * @return: File size in bytes, -1 if not exist, -2 if directory, -3 if other type
  **/
-int receive_file(int sockfd, const char *filepath, long file_size) {
-    // TODO: Implement file receiving
+long long get_file_size(const char *filename) {
+    struct stat st;
+    if (stat(filename, &st) == 0) {
+        /* Check if it's a regular file */
+        if (S_ISREG(st.st_mode)) {
+            return st.st_size;
+        }
+        /* If it's a directory */
+        if (S_ISDIR(st.st_mode)) {
+            return -2;
+        }
+        return -3; /* Other file types */
+    }
+    return -1; /* File does not exist */
+}
+
+/**
+ * @function receive_file_content_client: Receive binary data from server and save to file
+ * @param sockfd: Socket descriptor
+ * @param state: Connection state
+ * @param filepath: Full path to save the received file
+ * @param filesize: Total size of the file to receive
+ * @return: 0 on success, -1 on file error, -2 on connection error
+ **/
+int receive_file_content_client(int sockfd, conn_state_t *state, const char *filepath, long long filesize) {
+    FILE *fp = fopen(filepath, "wb");
+    if (fp == NULL) {
+        printf("Error: Cannot open file %s for writing.\n", filepath);
+        return -1;
+    }
+
+    long long total_received = 0;
+    
+    /* First, write any data already in recv_buffer */
+    if (state->buffer_pos > 0) {
+        long long to_write = state->buffer_pos;
+        
+        if (to_write > filesize) {
+            to_write = filesize;
+        }
+
+        fwrite(state->recv_buffer, 1, to_write, fp);
+        total_received += to_write;
+
+        int remaining = state->buffer_pos - to_write;
+        if (remaining > 0) {
+            memmove(state->recv_buffer, state->recv_buffer + to_write, remaining);
+        }
+        state->buffer_pos = remaining;
+    }
+
+    /* Receive remaining file data */
+    char file_buf[BUFF_SIZE];
+    int n;
+
+    while (total_received < filesize) {
+        long long bytes_to_recv = sizeof(file_buf);
+        if (filesize - total_received < bytes_to_recv) {
+            bytes_to_recv = filesize - total_received;
+        }
+
+        n = recv(sockfd, file_buf, bytes_to_recv, 0);
+        if (n <= 0) {
+            fclose(fp);
+            return -2;
+        }
+
+        fwrite(file_buf, 1, n, fp);
+        total_received += n;
+        
+        printf("\rDownloading... %lld / %lld bytes", total_received, filesize);
+    }
+
+    printf("\n");
+    fclose(fp);
     return 0;
 }
 

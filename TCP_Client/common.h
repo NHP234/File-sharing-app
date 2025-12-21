@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
 
 /* ==================== CONSTANTS ==================== */
 
@@ -29,8 +30,9 @@ typedef struct {
 /* network.c - Network I/O functions */
 int tcp_send(int sockfd, char *msg);
 int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len);
-int send_file(int sockfd, const char *filepath);
-int receive_file(int sockfd, const char *filepath, long file_size);
+int send_all(int sockfd, const void *buffer, int length);
+long long get_file_size(const char *filename);
+int receive_file_content_client(int sockfd, conn_state_t *state, const char *filepath, long long filesize);
 
 /* ui.c - UI functions */
 void print_main_menu();

@@ -215,6 +215,10 @@ int main(int argc, char *argv[]) {
         state->sockfd = connfd;
         state->user_group_id = -1;
         
+        /* Store client address for logging */
+        snprintf(state->client_addr, sizeof(state->client_addr), "%s:%d",
+                 inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
+        
         /* Create thread to handle client */
         if (pthread_create(&tid, NULL, handle_client, state) != 0) {
             perror("pthread_create() error");

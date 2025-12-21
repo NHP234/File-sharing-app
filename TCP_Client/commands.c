@@ -122,13 +122,150 @@ void do_logout(int sockfd, conn_state_t *state, int *is_logged_in) {
 }
 
 void do_upload(int sockfd, conn_state_t *state) {
-    // TODO: Implement upload
-    printf("Function not implemented yet\n");
+    char filepath[256];
+    char buffer[BUFF_SIZE];
+    long long filesize;
+    
+    printf("\n=== UPLOAD FILE ===\n");
+    printf("Enter file path: ");
+    if (fgets(filepath, sizeof(filepath), stdin) == NULL) return;
+    filepath[strcspn(filepath, "\n")] = 0;
+    
+    /* Get file size */
+    filesize = get_file_size(filepath);
+    if (filesize == -1) {
+        printf(">> Error: File not found or cannot access.\n");
+        return;
+    }
+    if (filesize == -2) {
+        printf(">> Error: '%s' is a directory, not a file.\n", filepath);
+        return;
+    }
+    if (filesize == -3) {
+        printf(">> Error: '%s' is not a regular file.\n", filepath);
+        return;
+    }
+    
+    /* Extract filename from path */
+    char *filename = strrchr(filepath, '/');
+    if (filename == NULL) {
+        filename = strrchr(filepath, '\\');  /* Windows path */
+    }
+    if (filename == NULL) {
+        filename = filepath;  /* No path separator */
+    } else {
+        filename++;  /* Skip the separator */
+    }
+    
+    /* Send UPLOAD command */
+    char command[BUFF_SIZE];
+    snprintf(command, sizeof(command), "UPLOAD %s %lld", filename, filesize);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Wait for 141 (ready to receive) */
+    if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) <= 0) {
+        printf(">> Failed to receive response\n");
+        return;
+    }
+    
+    if (strcmp(buffer, "141") != 0) {
+        print_response(buffer);
+        return;
+    }
+    
+    printf(">> Server is ready. Uploading...\n");
+    
+    /* Open and send file */
+    FILE *fp = fopen(filepath, "rb");
+    if (fp == NULL) {
+        printf(">> Cannot open file\n");
+        return;
+    }
+    
+    char file_buf[65536];
+    size_t n_read;
+    long long total_sent = 0;
+    
+    while ((n_read = fread(file_buf, 1, sizeof(file_buf), fp)) > 0) {
+        if (send_all(sockfd, file_buf, n_read) < 0) {
+            printf("\n>> Send file failed\n");
+            fclose(fp);
+            return;
+        }
+        total_sent += n_read;
+        printf("\rSent %lld / %lld bytes", total_sent, filesize);
+    }
+    printf("\n");
+    fclose(fp);
+    
+    /* Wait for final response */
+    if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) > 0) {
+        print_response(buffer);
+    }
 }
 
 void do_download(int sockfd, conn_state_t *state) {
-    // TODO: Implement download
-    printf("Function not implemented yet\n");
+    char filename[256];
+    char buffer[BUFF_SIZE];
+    long long filesize;
+    
+    printf("\n=== DOWNLOAD FILE ===\n");
+    printf("Enter filename to download: ");
+    if (fgets(filename, sizeof(filename), stdin) == NULL) return;
+    filename[strcspn(filename, "\n")] = 0;
+    
+    if (strlen(filename) == 0) {
+        printf(">> Filename cannot be empty\n");
+        return;
+    }
+    
+    /* Send DOWNLOAD command */
+    char command[BUFF_SIZE];
+    snprintf(command, sizeof(command), "DOWNLOAD %s", filename);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Wait for response */
+    if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) <= 0) {
+        printf(">> Failed to receive response\n");
+        return;
+    }
+    
+    /* Check if it's 151 (ready to send) */
+    int code;
+    if (sscanf(buffer, "%d", &code) != 1) {
+        print_response(buffer);
+        return;
+    }
+    
+    if (code == 151) {
+        /* Parse filesize from "151 <size>" */
+        if (sscanf(buffer, "151 %lld", &filesize) != 1) {
+            printf(">> Invalid response format\n");
+            return;
+        }
+        
+        printf(">> File found. Size: %lld bytes. Downloading...\n", filesize);
+        
+        /* Receive file content */
+        if (receive_file_content_client(sockfd, state, filename, filesize) == 0) {
+            printf(">> File saved as: %s\n", filename);
+            
+            /* Wait for final 150 response */
+            if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) > 0) {
+                print_response(buffer);
+            }
+        } else {
+            printf(">> Error during download.\n");
+        }
+    } else {
+        print_response(buffer);
+    }
 }
 
 void do_create_group(int sockfd, conn_state_t *state) {

@@ -65,8 +65,12 @@ void print_response(char *response) {
         printf(">> Logout successful\n");
     } else if (strcmp(code, "140") == 0) {
         printf(">> Upload successful\n");
+    } else if (strcmp(code, "141") == 0) {
+        printf(">> Server ready to receive file\n");
     } else if (strcmp(code, "150") == 0) {
-        printf(">> Download ready\n");
+        printf(">> Download successful\n");
+    } else if (strcmp(code, "151") == 0) {
+        printf(">> Server ready to send file\n");
     } else if (strcmp(code, "160") == 0) {
         printf(">> Join request sent successfully\n");
     } else if (strcmp(code, "170") == 0) {
