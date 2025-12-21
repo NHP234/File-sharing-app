@@ -16,7 +16,7 @@ static void resolve_path(char *full_path, int group_id, const char *user_path) {
     if (user_path == NULL || strlen(user_path) == 0 || strcmp(user_path, "/") == 0) {
         strcpy(clean_path, "");
     } else {
-        /* Prevent directory traversal */
+        // Prevent directory traversal
         if (strstr(user_path, "..")) {
             strcpy(clean_path, "");
         } else if (user_path[0] == '/') {
@@ -26,9 +26,18 @@ static void resolve_path(char *full_path, int group_id, const char *user_path) {
         }
     }
 
-    snprintf(full_path, MAX_PATH, "%s/group_%d/%s", STORAGE_ROOT, group_id, clean_path);
+    // Find group name from group_id
+    char group_name[MAX_GROUPNAME] = "";
+    for (int i = 0; i < group_count; i++) {
+        if (groups[i].group_id == group_id) {
+            strcpy(group_name, groups[i].group_name);
+            break;
+        }
+    }
 
-    /* Remove trailing slash */
+    snprintf(full_path, MAX_PATH, "%s/%s/%s", STORAGE_ROOT, group_name, clean_path);
+
+    // Remove trailing slash
     size_t len = strlen(full_path);
     if (len > 0 && full_path[len-1] == '/') {
         full_path[len-1] = '\0';
