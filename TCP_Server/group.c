@@ -63,10 +63,7 @@ void handle_approve(conn_state_t *state, char *command) {
  **/
 void handle_invite(conn_state_t *state, char *command) {
     char username[MAX_USERNAME];
-    if (sscanf(command, "INVITE %s", username) != 1) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "INVITE %s", username);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -155,10 +152,7 @@ void handle_invite(conn_state_t *state, char *command) {
  **/
 void handle_accept(conn_state_t *state, char *command) {
     char group_name[MAX_GROUPNAME];
-    if (sscanf(command, "ACCEPT %s", group_name) != 1) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "ACCEPT %s", group_name);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -257,10 +251,7 @@ void handle_leave(conn_state_t *state, char *command) {
  **/
 void handle_kick(conn_state_t *state, char *command) {
     char username[MAX_USERNAME];
-    if (sscanf(command, "KICK %s", username) != 1) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "KICK %s", username);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");

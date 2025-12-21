@@ -105,11 +105,7 @@ void handle_download(conn_state_t *state, char *command) {
  **/
 void handle_rename_file(conn_state_t *state, char *command) {
     char old_name[MAX_PATH], new_name[MAX_PATH];
-
-    if (sscanf(command, "RENAME_FILE %s %s", old_name, new_name) != 2) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "RENAME_FILE %s %s", old_name, new_name);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -174,11 +170,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
  **/
 void handle_delete_file(conn_state_t *state, char *command) {
     char path[MAX_PATH];
-
-    if (sscanf(command, "DELETE_FILE %s", path) != 1) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "DELETE_FILE %s", path);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -224,11 +216,7 @@ void handle_delete_file(conn_state_t *state, char *command) {
  **/
 void handle_copy_file(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_path[MAX_PATH];
-
-    if (sscanf(command, "COPY_FILE %s %s", src_path, dest_path) != 2) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "COPY_FILE %s %s", src_path, dest_path);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -316,11 +304,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
  **/
 void handle_move_file(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_dir[MAX_PATH];
-
-    if (sscanf(command, "MOVE_FILE %s %s", src_path, dest_dir) != 2) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "MOVE_FILE %s %s", src_path, dest_dir);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");

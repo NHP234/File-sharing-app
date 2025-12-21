@@ -48,11 +48,7 @@ static void resolve_path(char *full_path, int group_id, const char *user_path) {
  **/
 void handle_mkdir(conn_state_t *state, char *command) {
     char path[MAX_PATH];
-
-    if (sscanf(command, "MKDIR %s", path) != 1) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "MKDIR %s", path);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -101,11 +97,7 @@ void handle_mkdir(conn_state_t *state, char *command) {
  **/
 void handle_rename_folder(conn_state_t *state, char *command) {
     char old_name[MAX_PATH], new_name[MAX_PATH];
-
-    if (sscanf(command, "RENAME_FOLDER %s %s", old_name, new_name) != 2) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "RENAME_FOLDER %s %s", old_name, new_name);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -171,11 +163,7 @@ void handle_rename_folder(conn_state_t *state, char *command) {
  **/
 void handle_rmdir(conn_state_t *state, char *command) {
     char path[MAX_PATH];
-
-    if (sscanf(command, "RMDIR %s", path) != 1) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "RMDIR %s", path);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -225,11 +213,7 @@ void handle_rmdir(conn_state_t *state, char *command) {
  **/
 void handle_copy_folder(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_path[MAX_PATH];
-
-    if (sscanf(command, "COPY_FOLDER %s %s", src_path, dest_path) != 2) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "COPY_FOLDER %s %s", src_path, dest_path);
 
     if (!state->is_logged_in) {
         tcp_send(state->sockfd, "400");
@@ -296,11 +280,7 @@ void handle_copy_folder(conn_state_t *state, char *command) {
  **/
 void handle_move_folder(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_dir[MAX_PATH];
-
-    if (sscanf(command, "MOVE_FOLDER %s %s", src_path, dest_dir) != 2) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
+    sscanf(command, "MOVE_FOLDER %s %s", src_path, dest_dir);
 
     // Check logged in
     if (!state->is_logged_in) {
