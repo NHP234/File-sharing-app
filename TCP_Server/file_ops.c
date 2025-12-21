@@ -47,7 +47,7 @@ static int file_lock(int fd, int type) {
     lock.l_type = type;
     lock.l_whence = SEEK_SET;
     lock.l_start = 0;
-    lock.l_len = 0; /* Lock entire file */
+    lock.l_len = 0; // Lock entire file
 
     if (fcntl(fd, F_SETLKW, &lock) == -1) {
         perror("fcntl lock failed");

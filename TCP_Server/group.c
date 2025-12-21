@@ -104,6 +104,7 @@ void handle_invite(conn_state_t *state, char *command) {
     pthread_mutex_unlock(&account_mutex);
 
     if (!user_found) {
+    	//TODO: Dinh nghia ma tra ve
         tcp_send(state->sockfd, "300");
         return;
     }
@@ -131,8 +132,9 @@ void handle_invite(conn_state_t *state, char *command) {
             invite_count++;
             save_invites();
         } else {
+             // TODO: Dinh nghia ma tra ve
              pthread_mutex_unlock(&invite_mutex);
-             tcp_send(state->sockfd, "300"); // Server full or error
+             tcp_send(state->sockfd, "300"); // Server full
              return;
         }
     }
@@ -167,7 +169,8 @@ void handle_accept(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "407");
         return;
     }
-
+    
+    // Retrieve group id
     int group_id = -1;
     pthread_mutex_lock(&group_mutex);
     for (int i = 0; i < group_count; i++) {
@@ -178,7 +181,9 @@ void handle_accept(conn_state_t *state, char *command) {
     }
     pthread_mutex_unlock(&group_mutex);
 
+    // Group not exist
     if (group_id == -1) {
+    	//TODO: Dinh nghia ma tra ve
         tcp_send(state->sockfd, "300");
         return;
     }
@@ -192,7 +197,9 @@ void handle_accept(conn_state_t *state, char *command) {
         }
     }
 
+    // Invite not exist
     if (invite_index == -1) {
+    	//TODO: Dinh nghia ma tra ve
         pthread_mutex_unlock(&invite_mutex);
         tcp_send(state->sockfd, "300");
         return;
@@ -211,7 +218,7 @@ void handle_accept(conn_state_t *state, char *command) {
     for (int i = 0; i < account_count; i++) {
         if (strcmp(accounts[i].username, state->logged_user) == 0) {
             accounts[i].group_id = group_id;
-            state->user_group_id = group_id; // Update cache
+            state->user_group_id = group_id;
             break;
         }
     }
@@ -279,7 +286,7 @@ void handle_kick(conn_state_t *state, char *command) {
     for (int i = 0; i < account_count; i++) {
         if (strcmp(accounts[i].username, username) == 0) {
             if (accounts[i].group_id == state->user_group_id) {
-                accounts[i].group_id = -1;
+                accounts[i].group_id = -1; // Remove user from group
                 user_found_in_group = 1;
                 save_accounts();
             }
