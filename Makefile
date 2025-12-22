@@ -1,30 +1,57 @@
-# --- Biến (Variables) ---
-CC = gcc
-CFLAGS = -Wall -Wextra -g -std=c99
-LDFLAGS = -pthread # <--- Thêm cờ linker (bao gồm -pthread) ở đây
+# Root Makefile for File Sharing Application
 
-# Đường dẫn đến mã nguồn
-CLIENT_SRC = TCP_Client/client.c
-SERVER_SRC = TCP_Server/server.c
+.PHONY: all server client clean clean-server clean-client run-server run-client help
 
-# Tên file thực thi
-CLIENT_TARGET = client
-SERVER_TARGET = server
+# Default target: build both server and client
+all: server client
 
-# --- Quy tắc (Rules) ---
-.PHONY: all clean
+# Build server
+server:
+	@echo "Building server..."
+	@cd TCP_Server && $(MAKE)
+	@echo "Server built successfully!"
 
-# Build cả hai chương trình
-all: $(CLIENT_TARGET) $(SERVER_TARGET)
+# Build client
+client:
+	@echo "Building client..."
+	@cd TCP_Client && $(MAKE)
+	@echo "Client built successfully!"
 
-# Biên dịch client
-$(CLIENT_TARGET): $(CLIENT_SRC)
-	$(CC) $(CFLAGS) $(CLIENT_SRC) -o $(CLIENT_TARGET) $(LDFLAGS) # <--- Thêm $(LDFLAGS)
+# Clean all
+clean: clean-server clean-client
+	@echo "All clean!"
 
-# Biên dịch server
-$(SERVER_TARGET): $(SERVER_SRC)
-	$(CC) $(CFLAGS) $(SERVER_SRC) -o $(SERVER_TARGET) $(LDFLAGS) # <--- Thêm $(LDFLAGS)
+# Clean server
+clean-server:
+	@echo "Cleaning server..."
+	@cd TCP_Server && $(MAKE) clean
 
-# Dọn dẹp file biên dịch
-clean:
-	rm -f $(CLIENT_TARGET) $(SERVER_TARGET) *.o
+# Clean client
+clean-client:
+	@echo "Cleaning client..."
+	@cd TCP_Client && $(MAKE) clean
+
+# Run server (default port 8080)
+run-server:
+	@echo "Starting server on port 8080..."
+	@cd TCP_Server && ./server 8080
+
+# Run client (default localhost:8080)
+run-client:
+	@echo "Connecting to localhost:8080..."
+	@cd TCP_Client && ./client 127.0.0.1 8080
+
+# Help
+help:
+	@echo "File Sharing Application - Makefile"
+	@echo ""
+	@echo "Usage:"
+	@echo "  make              - Build both server and client"
+	@echo "  make server       - Build server only"
+	@echo "  make client       - Build client only"
+	@echo "  make clean        - Clean all build files"
+	@echo "  make clean-server - Clean server build files"
+	@echo "  make clean-client - Clean client build files"
+	@echo "  make run-server   - Run server on port 8080"
+	@echo "  make run-client   - Run client connecting to localhost:8080"
+	@echo "  make help         - Show this help message"

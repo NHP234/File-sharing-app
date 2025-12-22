@@ -1,0 +1,446 @@
+#include "common.h"
+
+/* ==================== COMMAND FUNCTIONS ==================== */
+
+void do_register(int sockfd, conn_state_t *state) {
+    char username[100];
+    char password[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    printf("\n=== REGISTER NEW ACCOUNT ===\n");
+    printf("Enter username (less than 50 chars): ");
+    if (fgets(username, sizeof(username), stdin) == NULL) {
+        return;
+    }
+    username[strcspn(username, "\n")] = 0;  /* Remove newline */
+    
+    printf("Enter password (less than 50 chars): ");
+    if (fgets(password, sizeof(password), stdin) == NULL) {
+        return;
+    }
+    password[strcspn(password, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(username) == 0 || strlen(password) == 0) {
+        printf(">> Username and password cannot be empty\n");
+        return;
+    }
+    
+    /* Send REGISTER command */
+    snprintf(command, sizeof(command), "REGISTER %s %s", username, password);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
+}
+
+void do_login(int sockfd, conn_state_t *state, int *is_logged_in) {
+    char username[100];
+    char password[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    /* Check if already logged in */
+    if (*is_logged_in) {
+        printf(">> You are already logged in\n");
+        return;
+    }
+    
+    printf("\n=== LOGIN ===\n");
+    printf("Enter username: ");
+    if (fgets(username, sizeof(username), stdin) == NULL) {
+        return;
+    }
+    username[strcspn(username, "\n")] = 0;  /* Remove newline */
+    
+    printf("Enter password: ");
+    if (fgets(password, sizeof(password), stdin) == NULL) {
+        return;
+    }
+    password[strcspn(password, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(username) == 0 || strlen(password) == 0) {
+        printf(">> Username and password cannot be empty\n");
+        return;
+    }
+    
+    /* Send LOGIN command */
+    snprintf(command, sizeof(command), "LOGIN %s %s", username, password);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+        
+        /* Update login status if successful */
+        if (strncmp(response, "110", 3) == 0) {
+            *is_logged_in = 1;
+        }
+    } else {
+        printf(">> Failed to receive response\n");
+    }
+}
+
+void do_logout(int sockfd, conn_state_t *state, int *is_logged_in) {
+    char response[BUFF_SIZE];
+    
+    /* Check if logged in */
+    if (!*is_logged_in) {
+        printf(">> You are not logged in\n");
+        return;
+    }
+    
+    /* Send LOGOUT command */
+    if (tcp_send(sockfd, "LOGOUT") <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+        
+        /* Update login status if successful */
+        if (strncmp(response, "130", 3) == 0) {
+            *is_logged_in = 0;
+        }
+    } else {
+        printf(">> Failed to receive response\n");
+    }
+}
+
+void do_upload(int sockfd, conn_state_t *state) {
+    char filepath[256];
+    char buffer[BUFF_SIZE];
+    long long filesize;
+    
+    printf("\n=== UPLOAD FILE ===\n");
+    printf("Enter file path: ");
+    if (fgets(filepath, sizeof(filepath), stdin) == NULL) return;
+    filepath[strcspn(filepath, "\n")] = 0;
+    
+    /* Get file size */
+    filesize = get_file_size(filepath);
+    if (filesize == -1) {
+        printf(">> Error: File not found or cannot access.\n");
+        return;
+    }
+    if (filesize == -2) {
+        printf(">> Error: '%s' is a directory, not a file.\n", filepath);
+        return;
+    }
+    if (filesize == -3) {
+        printf(">> Error: '%s' is not a regular file.\n", filepath);
+        return;
+    }
+    
+    /* Extract filename from path */
+    char *filename = strrchr(filepath, '/');
+    if (filename == NULL) {
+        filename = strrchr(filepath, '\\');  /* Windows path */
+    }
+    if (filename == NULL) {
+        filename = filepath;  /* No path separator */
+    } else {
+        filename++;  /* Skip the separator */
+    }
+    
+    /* Send UPLOAD command */
+    char command[BUFF_SIZE];
+    snprintf(command, sizeof(command), "UPLOAD %s %lld", filename, filesize);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Wait for 141 (ready to receive) */
+    if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) <= 0) {
+        printf(">> Failed to receive response\n");
+        return;
+    }
+    
+    if (strcmp(buffer, "141") != 0) {
+        print_response(buffer);
+        return;
+    }
+    
+    printf(">> Server is ready. Uploading...\n");
+    
+    /* Open and send file */
+    FILE *fp = fopen(filepath, "rb");
+    if (fp == NULL) {
+        printf(">> Cannot open file\n");
+        return;
+    }
+    
+    char file_buf[65536];
+    size_t n_read;
+    long long total_sent = 0;
+    
+    while ((n_read = fread(file_buf, 1, sizeof(file_buf), fp)) > 0) {
+        if (send_all(sockfd, file_buf, n_read) < 0) {
+            printf("\n>> Send file failed\n");
+            fclose(fp);
+            return;
+        }
+        total_sent += n_read;
+        printf("\rSent %lld / %lld bytes", total_sent, filesize);
+    }
+    printf("\n");
+    fclose(fp);
+    
+    /* Wait for final response */
+    if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) > 0) {
+        print_response(buffer);
+    }
+}
+
+void do_download(int sockfd, conn_state_t *state) {
+    char filename[256];
+    char buffer[BUFF_SIZE];
+    long long filesize;
+    
+    printf("\n=== DOWNLOAD FILE ===\n");
+    printf("Enter filename to download: ");
+    if (fgets(filename, sizeof(filename), stdin) == NULL) return;
+    filename[strcspn(filename, "\n")] = 0;
+    
+    if (strlen(filename) == 0) {
+        printf(">> Filename cannot be empty\n");
+        return;
+    }
+    
+    /* Send DOWNLOAD command */
+    char command[BUFF_SIZE];
+    snprintf(command, sizeof(command), "DOWNLOAD %s", filename);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Wait for response */
+    if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) <= 0) {
+        printf(">> Failed to receive response\n");
+        return;
+    }
+    
+    /* Check if it's 151 (ready to send) */
+    int code;
+    if (sscanf(buffer, "%d", &code) != 1) {
+        print_response(buffer);
+        return;
+    }
+    
+    if (code == 151) {
+        /* Parse filesize from "151 <size>" */
+        if (sscanf(buffer, "151 %lld", &filesize) != 1) {
+            printf(">> Invalid response format\n");
+            return;
+        }
+        
+        printf(">> File found. Size: %lld bytes. Downloading...\n", filesize);
+        
+        /* Receive file content */
+        if (receive_file_content_client(sockfd, state, filename, filesize) == 0) {
+            printf(">> File saved as: %s\n", filename);
+            
+            /* Wait for final 150 response */
+            if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) > 0) {
+                print_response(buffer);
+            }
+        } else {
+            printf(">> Error during download.\n");
+        }
+    } else {
+        print_response(buffer);
+    }
+}
+
+void do_create_group(int sockfd, conn_state_t *state) {
+    char group_name[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    printf("\n=== CREATE NEW GROUP ===\n");
+    printf("Enter group name (less than 50 chars): ");
+    if (fgets(group_name, sizeof(group_name), stdin) == NULL) {
+        return;
+    }
+    group_name[strcspn(group_name, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(group_name) == 0) {
+        printf(">> Group name cannot be empty\n");
+        return;
+    }
+    
+    /* Check for spaces in group name */
+    if (strchr(group_name, ' ') != NULL) {
+        printf(">> Group name cannot contain spaces\n");
+        return;
+    }
+    
+    /* Send CREATE command */
+    snprintf(command, sizeof(command), "CREATE %s", group_name);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
+}
+
+void do_join_group(int sockfd, conn_state_t *state) {
+    char group_name[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    printf("\n=== JOIN GROUP ===\n");
+    printf("Enter group name: ");
+    if (fgets(group_name, sizeof(group_name), stdin) == NULL) {
+        return;
+    }
+    group_name[strcspn(group_name, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(group_name) == 0) {
+        printf(">> Group name cannot be empty\n");
+        return;
+    }
+    
+    /* Send JOIN command */
+    snprintf(command, sizeof(command), "JOIN %s", group_name);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
+}
+
+void do_approve(int sockfd, conn_state_t *state) {
+    // TODO: Implement approve
+    printf("Function not implemented yet\n");
+}
+
+void do_invite(int sockfd, conn_state_t *state) {
+    // TODO: Implement invite
+    printf("Function not implemented yet\n");
+}
+
+void do_accept(int sockfd, conn_state_t *state) {
+    // TODO: Implement accept
+    printf("Function not implemented yet\n");
+}
+
+void do_leave(int sockfd, conn_state_t *state) {
+    // TODO: Implement leave
+    printf("Function not implemented yet\n");
+}
+
+void do_kick(int sockfd, conn_state_t *state) {
+    // TODO: Implement kick
+    printf("Function not implemented yet\n");
+}
+
+void do_list_groups(int sockfd, conn_state_t *state) {
+    char response[BUFF_SIZE];
+    
+    printf("\n=== LIST ALL GROUPS ===\n");
+    
+    /* Send LIST_GROUPS command */
+    if (tcp_send(sockfd, "LIST_GROUPS") <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
+}
+
+void do_list_members(int sockfd, conn_state_t *state) {
+    // TODO: Implement list members
+    printf("Function not implemented yet\n");
+}
+
+void do_list_requests(int sockfd, conn_state_t *state) {
+    // TODO: Implement list requests
+    printf("Function not implemented yet\n");
+}
+
+void do_rename_file(int sockfd, conn_state_t *state) {
+    // TODO: Implement rename file
+    printf("Function not implemented yet\n");
+}
+
+void do_delete_file(int sockfd, conn_state_t *state) {
+    // TODO: Implement delete file
+    printf("Function not implemented yet\n");
+}
+
+void do_copy_file(int sockfd, conn_state_t *state) {
+    // TODO: Implement copy file
+    printf("Function not implemented yet\n");
+}
+
+void do_move_file(int sockfd, conn_state_t *state) {
+    // TODO: Implement move file
+    printf("Function not implemented yet\n");
+}
+
+void do_mkdir(int sockfd, conn_state_t *state) {
+    // TODO: Implement mkdir
+    printf("Function not implemented yet\n");
+}
+
+void do_rename_folder(int sockfd, conn_state_t *state) {
+    // TODO: Implement rename folder
+    printf("Function not implemented yet\n");
+}
+
+void do_rmdir(int sockfd, conn_state_t *state) {
+    // TODO: Implement rmdir
+    printf("Function not implemented yet\n");
+}
+
+void do_copy_folder(int sockfd, conn_state_t *state) {
+    // TODO: Implement copy folder
+    printf("Function not implemented yet\n");
+}
+
+void do_move_folder(int sockfd, conn_state_t *state) {
+    // TODO: Implement move folder
+    printf("Function not implemented yet\n");
+}
+
+void do_list_content(int sockfd, conn_state_t *state) {
+    // TODO: Implement list content
+    printf("Function not implemented yet\n");
+}
+
