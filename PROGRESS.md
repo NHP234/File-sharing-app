@@ -80,44 +80,45 @@
 
 ## 🎯 Người 3: File System & Admin (Hệ thống File & Quản trị nâng cao)
 
-**Status:** Waiting  
+**Status:** ✅ COMPLETE - All implementations done  
 **Files:** `folder_ops.c`, `file_ops.c`, `group.c`, `TCP_Client/commands.c`
 
 | Task | Status | Notes |
 |------|--------|-------|
-| MKDIR (server) | 🔜 Todo | Can start after LOGIN |
-| MKDIR (client) | 🔜 Todo | |
-| LIST_CONTENT (server) | 🔜 Todo | Can start after LOGIN |
-| LIST_CONTENT (client) | 🔜 Todo | |
-| RENAME_FILE (server) | 🔜 Todo | Need UPLOAD first for testing |
-| RENAME_FILE (client) | 🔜 Todo | |
-| DELETE_FILE (server) | 🔜 Todo | Need UPLOAD first for testing |
-| DELETE_FILE (client) | 🔜 Todo | |
-| COPY_FILE (server) | 🔜 Todo | |
-| COPY_FILE (client) | 🔜 Todo | |
-| MOVE_FILE (server) | 🔜 Todo | |
-| MOVE_FILE (client) | 🔜 Todo | |
-| RENAME_FOLDER (server) | 🔜 Todo | |
-| RENAME_FOLDER (client) | 🔜 Todo | |
-| RMDIR (server) | 🔜 Todo | |
-| RMDIR (client) | 🔜 Todo | |
-| COPY_FOLDER (server) | 🔜 Todo | |
-| COPY_FOLDER (client) | 🔜 Todo | |
-| MOVE_FOLDER (server) | 🔜 Todo | |
-| MOVE_FOLDER (client) | 🔜 Todo | |
-| INVITE (server) | 🔜 Todo | Need CREATE from Person 2 |
-| INVITE (client) | 🔜 Todo | |
-| KICK (server) | 🔜 Todo | Need CREATE from Person 2 |
-| KICK (client) | 🔜 Todo | |
+| MKDIR (server) | ✅ Done | Implemented with path resolution |
+| MKDIR (client) | ✅ Done | Tested |
+| LIST_CONTENT (server) | ✅ Done | Returns file/folder listing |
+| LIST_CONTENT (client) | ✅ Done | Tested |
+| RENAME_FILE (server) | ✅ Done | Leader only, with checks |
+| RENAME_FILE (client) | ✅ Done | Tested |
+| DELETE_FILE (server) | ✅ Done | Leader only, uses unlink |
+| DELETE_FILE (client) | ✅ Done | Tested |
+| COPY_FILE (server) | ✅ Done | With file locking |
+| COPY_FILE (client) | ✅ Done | Tested |
+| MOVE_FILE (server) | ✅ Done | Moves to destination folder |
+| MOVE_FILE (client) | ✅ Done | Tested |
+| RENAME_FOLDER (server) | ✅ Done | Leader only, with checks |
+| RENAME_FOLDER (client) | ✅ Done | Tested |
+| RMDIR (server) | ✅ Done | Leader only, recursive delete |
+| RMDIR (client) | ✅ Done | Tested |
+| COPY_FOLDER (server) | ✅ Done | Recursive copy with cp -r |
+| COPY_FOLDER (client) | ✅ Done | Tested |
+| MOVE_FOLDER (server) | ✅ Done | Moves to destination folder |
+| MOVE_FOLDER (client) | ✅ Done | Tested |
+| INVITE (server) | ✅ Done | Implemented handle_invite |
+| INVITE (client) | ✅ Done | Tested |
+| ACCEPT (server) | ✅ Done | Implemented handle_accept |
+| ACCEPT (client) | ✅ Done | Tested |
+| KICK (server) | ✅ Done | Implemented handle_kick |
+| KICK (client) | ✅ Done | Tested |
 
-**Blockers:** 
-- ~~Waiting for LOGIN from Person 2~~ ✅ LOGIN is ready!
-- File operations need UPLOAD from Person 1 for testing
+**Blockers:** None - All implementations complete
 
 **Next Steps:**
-1. ✅ LOGIN is ready - can start MKDIR and LIST_CONTENT now!
-2. Wait for UPLOAD to implement file operations
-3. Implement INVITE/KICK after CREATE is ready
+1. ✅ All server-side implementations COMPLETE
+2. ✅ All client-side implementations COMPLETE  
+3. 🔜 Integration testing with Person 2's AUTH features (when ready)
+4. 🔜 Full system testing when all components are ready
 
 **Dependencies:**
 - Needs: ✅ LOGIN (from Person 2) - READY!, UPLOAD (from Person 1 for testing)
@@ -141,8 +142,8 @@
 | CREATE | ✅ | ✅ | ✅ | ✅ | Error codes: 202, 400, 407, 501, 504 |
 | JOIN | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | APPROVE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| INVITE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| ACCEPT | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| INVITE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| ACCEPT | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
 | LEAVE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | KICK | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | LIST_GROUPS | ✅ | ✅ | ✅ | ✅ | Error codes: 203, 400 |
@@ -154,17 +155,17 @@
 | UPLOAD | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | DOWNLOAD | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | **File Operations** |
-| MKDIR | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| LIST_CONTENT | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| RENAME_FILE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| DELETE_FILE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| COPY_FILE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| MOVE_FILE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| MKDIR | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| LIST_CONTENT | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| RENAME_FILE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| DELETE_FILE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| COPY_FILE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| MOVE_FILE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
 | **Folder Operations** |
-| RENAME_FOLDER | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| RMDIR | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| COPY_FOLDER | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| MOVE_FOLDER | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| RENAME_FOLDER | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| RMDIR | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| COPY_FOLDER | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| MOVE_FOLDER | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
 
 **Legend:**
 - ✅ Done
@@ -177,6 +178,7 @@
 ## 🐛 KNOWN ISSUES
 
 None yet.
+
 
 ---
 

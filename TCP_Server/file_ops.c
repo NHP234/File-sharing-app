@@ -1,4 +1,69 @@
 #include "common.h"
+#include <fcntl.h>
+#include <libgen.h>
+
+#define STORAGE_ROOT "data/groups"
+
+/**
+ * @function resolve_path: Resolve user path to physical path
+ * @param full_path: Buffer to store resolved path
+ * @param group_id: Group ID
+ * @param user_path: User-provided path
+ **/
+static void resolve_path(char *full_path, int group_id, const char *user_path) {
+    char clean_path[MAX_PATH];
+
+    if (user_path == NULL || strlen(user_path) == 0 || strcmp(user_path, "/") == 0) {
+        strcpy(clean_path, "");
+    } else {
+        // Prevent directory traversal
+        if (strstr(user_path, "..")) {
+            strcpy(clean_path, "");
+        } else if (user_path[0] == '/') {
+            strcpy(clean_path, user_path + 1);
+        } else {
+            strcpy(clean_path, user_path);
+        }
+    }
+
+    // Find group name from group_id
+    char group_name[MAX_GROUPNAME] = "";
+    for (int i = 0; i < group_count; i++) {
+        if (groups[i].group_id == group_id) {
+            strcpy(group_name, groups[i].group_name);
+            break;
+        }
+    }
+
+    snprintf(full_path, MAX_PATH, "%s/%s/%s", STORAGE_ROOT, group_name, clean_path);
+
+    // Remove trailing slash
+    size_t len = strlen(full_path);
+    if (len > 0 && full_path[len-1] == '/') {
+        full_path[len-1] = '\0';
+    }
+}
+
+/**
+ * @function file_lock: Lock a file for reading or writing
+ * @param fd: File descriptor
+ * @param type: Lock type (F_RDLCK, F_WRLCK, F_UNLCK)
+ * @return: 0 on success, -1 on failure
+ **/
+static int file_lock(int fd, int type) {
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = type;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0; // Lock entire file
+
+    if (fcntl(fd, F_SETLKW, &lock) == -1) {
+        perror("fcntl lock failed");
+        return -1;
+    }
+    return 0;
+}
 
 /* ==================== FILE OPERATION COMMAND HANDLERS ==================== */
 
@@ -172,8 +237,56 @@ void handle_download(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_rename_file(conn_state_t *state, char *command) {
-    // TODO: Implement rename file
-    tcp_send(state->sockfd, "300");
+    char old_name[MAX_PATH], new_name[MAX_PATH];
+    sscanf(command, "RENAME_FILE %s %s", old_name, new_name);
+
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "404");
+        return;
+    }
+
+    if (!is_group_leader(state->logged_user, state->user_group_id)) {
+        tcp_send(state->sockfd, "406");
+        return;
+    }
+
+    char old_phys_path[MAX_PATH];
+    char new_phys_path[MAX_PATH];
+    char parent_dir[MAX_PATH];
+
+    resolve_path(old_phys_path, state->user_group_id, old_name);
+
+    // Extract parent directory
+    strcpy(parent_dir, old_phys_path);
+    char *last_slash = strrchr(parent_dir, '/');
+    if (last_slash) {
+        *last_slash = '\0';
+    }
+
+    snprintf(new_phys_path, sizeof(new_phys_path), "%s/%s", parent_dir, new_name);
+
+    // Check if new name already exists
+    struct stat st;
+    if (stat(new_phys_path, &st) == 0) {
+        tcp_send(state->sockfd, "501"); /* Name already exists */
+        return;
+    }
+
+    if (rename(old_phys_path, new_phys_path) == 0) {
+        tcp_send(state->sockfd, "210"); // Success
+
+        char log_msg[BUFF_SIZE];
+        snprintf(log_msg, sizeof(log_msg), "",
+                 state->logged_user, old_name, new_name);
+        write_log(log_msg);
+    } else {
+        tcp_send(state->sockfd, "500"); // file not found
+    }
 }
 
 /**
@@ -189,8 +302,37 @@ void handle_rename_file(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_delete_file(conn_state_t *state, char *command) {
-    // TODO: Implement delete file
-    tcp_send(state->sockfd, "300");
+    char path[MAX_PATH];
+    sscanf(command, "DELETE_FILE %s", path);
+
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "404");
+        return;
+    }
+
+    if (!is_group_leader(state->logged_user, state->user_group_id)) {
+        tcp_send(state->sockfd, "406");
+        return;
+    }
+
+    char phys_path[MAX_PATH];
+    resolve_path(phys_path, state->user_group_id, path);
+
+    if (unlink(phys_path) == 0) {
+        tcp_send(state->sockfd, "211");
+
+        char log_msg[BUFF_SIZE];
+        snprintf(log_msg, sizeof(log_msg), "",
+                 state->logged_user, path);
+        write_log(log_msg);
+    } else {
+        tcp_send(state->sockfd, "500"); /* File not found */
+    }
 }
 
 /**
@@ -206,8 +348,79 @@ void handle_delete_file(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_copy_file(conn_state_t *state, char *command) {
-    // TODO: Implement copy file
-    tcp_send(state->sockfd, "300");
+    char src_path[MAX_PATH], dest_path[MAX_PATH];
+    sscanf(command, "COPY_FILE %s %s", src_path, dest_path);
+
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "404");
+        return;
+    }
+
+    char src_phys[MAX_PATH];
+    char dest_phys[MAX_PATH];
+
+    resolve_path(src_phys, state->user_group_id, src_path);
+    resolve_path(dest_phys, state->user_group_id, dest_path);
+
+    FILE *in = fopen(src_phys, "rb");
+    if (!in) {
+        tcp_send(state->sockfd, "500"); /* Source not found */
+        return;
+    }
+
+    // Lock source file
+    if (file_lock(fileno(in), F_RDLCK) == -1) {
+        fclose(in);
+        tcp_send(state->sockfd, "500");
+        return;
+    }
+
+    // Open destination file
+    FILE *out = fopen(dest_phys, "wb");
+    if (!out) {
+        fclose(in);
+        tcp_send(state->sockfd, "503"); // Invalid destination
+        return;
+    }
+
+    // Lock destination file for writing
+    if (file_lock(fileno(out), F_WRLCK) == -1) {
+        fclose(out);
+        fclose(in);
+        tcp_send(state->sockfd, "500");
+        return;
+    }
+
+    //Copy file
+    char buf[CHUNK_SIZE];
+    size_t n;
+    int success = 1;
+
+    while ((n = fread(buf, 1, sizeof(buf), in)) > 0) {
+        if (fwrite(buf, 1, n, out) != n) {
+            success = 0;
+            break;
+        }
+    }
+
+    fclose(in);
+    fclose(out);
+
+    if (success) {
+        tcp_send(state->sockfd, "212"); /* Success */
+
+        char log_msg[BUFF_SIZE];
+        snprintf(log_msg, sizeof(log_msg), "",
+                 state->logged_user, src_path, dest_path);
+        write_log(log_msg);
+    } else {
+        tcp_send(state->sockfd, "500"); /* Copy failed */
+    }
 }
 
 /**
@@ -223,7 +436,51 @@ void handle_copy_file(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_move_file(conn_state_t *state, char *command) {
-    // TODO: Implement move file
-    tcp_send(state->sockfd, "300");
+    char src_path[MAX_PATH], dest_dir[MAX_PATH];
+    sscanf(command, "MOVE_FILE %s %s", src_path, dest_dir);
+
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "404");
+        return;
+    }
+
+    char src_phys[MAX_PATH];
+    char dest_folder_phys[MAX_PATH];
+    char final_dest_phys[MAX_PATH];
+
+    resolve_path(src_phys, state->user_group_id, src_path);
+    resolve_path(dest_folder_phys, state->user_group_id, dest_dir);
+
+    // Check if destination folder exists
+    struct stat st;
+    if (stat(dest_folder_phys, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        tcp_send(state->sockfd, "503");
+        return;
+    }
+
+    // Get basename of source file
+    char temp_src[MAX_PATH];
+    strcpy(temp_src, src_path);
+    char *filename = basename(temp_src);
+
+    // Target path = dest_dir + / + basename(src_path)
+    snprintf(final_dest_phys, sizeof(final_dest_phys), "%s/%s", dest_folder_phys, filename);
+
+    // Move file
+    if (rename(src_phys, final_dest_phys) == 0) {
+        tcp_send(state->sockfd, "213"); // Success
+
+        char log_msg[BUFF_SIZE];
+        snprintf(log_msg, sizeof(log_msg), "",
+                 state->logged_user, src_path, dest_dir);
+        write_log(log_msg);
+    } else {
+        tcp_send(state->sockfd, "500"); // Source not found
+    }
 }
 

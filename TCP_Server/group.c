@@ -217,8 +217,82 @@ void handle_approve(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_invite(conn_state_t *state, char *command) {
-    // TODO: Implement invite
-    tcp_send(state->sockfd, "300");
+    char username[MAX_USERNAME];
+    sscanf(command, "INVITE %s", username);
+
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "406");
+        return;
+    }
+
+    pthread_mutex_lock(&group_mutex);
+    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
+    pthread_mutex_unlock(&group_mutex);
+
+    if (!is_leader) {
+        tcp_send(state->sockfd, "406");
+        return;
+    }
+
+    // Check if user exists and is not in group
+    int user_found = 0;
+    int already_in_group = 0;
+
+    pthread_mutex_lock(&account_mutex);
+    for (int i = 0; i < account_count; i++) {
+        if (strcmp(accounts[i].username, username) == 0) {
+            user_found = 1;
+            if (accounts[i].group_id == state->user_group_id) {
+                already_in_group = 1;
+            }
+            break;
+        }
+    }
+    pthread_mutex_unlock(&account_mutex);
+
+    if (!user_found) {
+    	//TODO: Dinh nghia ma tra ve
+        tcp_send(state->sockfd, "300");
+        return;
+    }
+
+    if (already_in_group) {
+        tcp_send(state->sockfd, "405");
+        return;
+    }
+
+    // Add to invites
+    pthread_mutex_lock(&invite_mutex);
+    // Check if invite already exists
+    int invite_exists = 0;
+    for (int i = 0; i < invite_count; i++) {
+        if (strcmp(invites[i].username, username) == 0 && invites[i].group_id == state->user_group_id) {
+            invite_exists = 1;
+            break;
+        }
+    }
+
+    if (!invite_exists) {
+        if (invite_count < MAX_INVITES) {
+            strcpy(invites[invite_count].username, username);
+            invites[invite_count].group_id = state->user_group_id;
+            invite_count++;
+            save_invites();
+        } else {
+             // TODO: Dinh nghia ma tra ve
+             pthread_mutex_unlock(&invite_mutex);
+             tcp_send(state->sockfd, "300"); // Server full
+             return;
+        }
+    }
+    pthread_mutex_unlock(&invite_mutex);
+
+    tcp_send(state->sockfd, "180");
 }
 
 /**
@@ -232,8 +306,75 @@ void handle_invite(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_accept(conn_state_t *state, char *command) {
-    // TODO: Implement accept
-    tcp_send(state->sockfd, "300");
+    char group_name[MAX_GROUPNAME];
+    sscanf(command, "ACCEPT %s", group_name);
+
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+
+    if (state->user_group_id != -1) {
+        tcp_send(state->sockfd, "407");
+        return;
+    }
+    
+    // Retrieve group id
+    int group_id = -1;
+    pthread_mutex_lock(&group_mutex);
+    for (int i = 0; i < group_count; i++) {
+        if (strcmp(groups[i].group_name, group_name) == 0) {
+            group_id = groups[i].group_id;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&group_mutex);
+
+    // Group not exist
+    if (group_id == -1) {
+    	//TODO: Dinh nghia ma tra ve
+        tcp_send(state->sockfd, "300");
+        return;
+    }
+
+    int invite_index = -1;
+    pthread_mutex_lock(&invite_mutex);
+    for (int i = 0; i < invite_count; i++) {
+        if (strcmp(invites[i].username, state->logged_user) == 0 && invites[i].group_id == group_id) {
+            invite_index = i;
+            break;
+        }
+    }
+
+    // Invite not exist
+    if (invite_index == -1) {
+    	//TODO: Dinh nghia ma tra ve
+        pthread_mutex_unlock(&invite_mutex);
+        tcp_send(state->sockfd, "300");
+        return;
+    }
+
+    // Remove invite
+    for (int i = invite_index; i < invite_count - 1; i++) {
+        invites[i] = invites[i+1];
+    }
+    invite_count--;
+    save_invites();
+    pthread_mutex_unlock(&invite_mutex);
+
+    // Update user group
+    pthread_mutex_lock(&account_mutex);
+    for (int i = 0; i < account_count; i++) {
+        if (strcmp(accounts[i].username, state->logged_user) == 0) {
+            accounts[i].group_id = group_id;
+            state->user_group_id = group_id;
+            break;
+        }
+    }
+    save_accounts();
+    pthread_mutex_unlock(&account_mutex);
+
+    tcp_send(state->sockfd, "190");
 }
 
 /**
@@ -264,8 +405,48 @@ void handle_leave(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_kick(conn_state_t *state, char *command) {
-    // TODO: Implement kick
-    tcp_send(state->sockfd, "300");
+    char username[MAX_USERNAME];
+    sscanf(command, "KICK %s", username);
+
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "406");
+        return;
+    }
+
+    pthread_mutex_lock(&group_mutex);
+    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
+    pthread_mutex_unlock(&group_mutex);
+
+    if (!is_leader) {
+        tcp_send(state->sockfd, "406");
+        return;
+    }
+
+    int user_found_in_group = 0;
+    pthread_mutex_lock(&account_mutex);
+    for (int i = 0; i < account_count; i++) {
+        if (strcmp(accounts[i].username, username) == 0) {
+            if (accounts[i].group_id == state->user_group_id) {
+                accounts[i].group_id = -1; // Remove user from group
+                user_found_in_group = 1;
+                save_accounts();
+            }
+            break;
+        }
+    }
+    pthread_mutex_unlock(&account_mutex);
+
+    if (!user_found_in_group) {
+        tcp_send(state->sockfd, "500");
+        return;
+    }
+
+    tcp_send(state->sockfd, "201");
 }
 
 /**
@@ -343,4 +524,3 @@ void handle_list_requests(conn_state_t *state, char *command) {
     // TODO: Implement list requests
     tcp_send(state->sockfd, "300");
 }
-
