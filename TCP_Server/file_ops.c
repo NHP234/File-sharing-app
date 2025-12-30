@@ -238,20 +238,19 @@ void handle_download(conn_state_t *state, char *command) {
  **/
 void handle_rename_file(conn_state_t *state, char *command) {
     char old_name[MAX_PATH], new_name[MAX_PATH];
-    sscanf(command, "RENAME_FILE %s %s", old_name, new_name);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("RENAME_FILE", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
-    }
-
-    if (!is_group_leader(state->logged_user, state->user_group_id)) {
-        tcp_send(state->sockfd, "406");
+    /* Parse command */
+    if (sscanf(command, "RENAME_FILE %s %s", old_name, new_name) != 2) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -274,6 +273,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
     struct stat st;
     if (stat(new_phys_path, &st) == 0) {
         tcp_send(state->sockfd, "501"); /* Name already exists */
+        write_log_detailed(state->client_addr, command, "-ERR New file name already exists");
         return;
     }
 
@@ -281,11 +281,13 @@ void handle_rename_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "210"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s renamed file: %s -> %s",
                  state->logged_user, old_name, new_name);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK File renamed successfully");
     } else {
         tcp_send(state->sockfd, "500"); // file not found
+        write_log_detailed(state->client_addr, command, "-ERR File not found");
     }
 }
 
@@ -303,20 +305,19 @@ void handle_rename_file(conn_state_t *state, char *command) {
  **/
 void handle_delete_file(conn_state_t *state, char *command) {
     char path[MAX_PATH];
-    sscanf(command, "DELETE_FILE %s", path);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("DELETE_FILE", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
-    }
-
-    if (!is_group_leader(state->logged_user, state->user_group_id)) {
-        tcp_send(state->sockfd, "406");
+    /* Parse command */
+    if (sscanf(command, "DELETE_FILE %s", path) != 1) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -327,11 +328,13 @@ void handle_delete_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "211");
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s deleted file: %s",
                  state->logged_user, path);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK File deleted successfully");
     } else {
         tcp_send(state->sockfd, "500"); /* File not found */
+        write_log_detailed(state->client_addr, command, "-ERR File not found");
     }
 }
 
@@ -349,15 +352,19 @@ void handle_delete_file(conn_state_t *state, char *command) {
  **/
 void handle_copy_file(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_path[MAX_PATH];
-    sscanf(command, "COPY_FILE %s %s", src_path, dest_path);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("COPY_FILE", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Parse command */
+    if (sscanf(command, "COPY_FILE %s %s", src_path, dest_path) != 2) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -370,6 +377,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
     FILE *in = fopen(src_phys, "rb");
     if (!in) {
         tcp_send(state->sockfd, "500"); /* Source not found */
+        write_log_detailed(state->client_addr, command, "-ERR Source file not found");
         return;
     }
 
@@ -377,6 +385,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
     if (file_lock(fileno(in), F_RDLCK) == -1) {
         fclose(in);
         tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot lock source file");
         return;
     }
 
@@ -385,6 +394,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
     if (!out) {
         fclose(in);
         tcp_send(state->sockfd, "503"); // Invalid destination
+        write_log_detailed(state->client_addr, command, "-ERR Invalid destination path");
         return;
     }
 
@@ -393,6 +403,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
         fclose(out);
         fclose(in);
         tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot lock destination file");
         return;
     }
 
@@ -415,11 +426,13 @@ void handle_copy_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "212"); /* Success */
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s copied file: %s -> %s",
                  state->logged_user, src_path, dest_path);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK File copied successfully");
     } else {
         tcp_send(state->sockfd, "500"); /* Copy failed */
+        write_log_detailed(state->client_addr, command, "-ERR Copy operation failed");
     }
 }
 
@@ -437,15 +450,19 @@ void handle_copy_file(conn_state_t *state, char *command) {
  **/
 void handle_move_file(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_dir[MAX_PATH];
-    sscanf(command, "MOVE_FILE %s %s", src_path, dest_dir);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("MOVE_FILE", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Parse command */
+    if (sscanf(command, "MOVE_FILE %s %s", src_path, dest_dir) != 2) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -460,6 +477,7 @@ void handle_move_file(conn_state_t *state, char *command) {
     struct stat st;
     if (stat(dest_folder_phys, &st) != 0 || !S_ISDIR(st.st_mode)) {
         tcp_send(state->sockfd, "503");
+        write_log_detailed(state->client_addr, command, "-ERR Invalid destination path");
         return;
     }
 
@@ -476,11 +494,13 @@ void handle_move_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "213"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s moved file: %s -> %s",
                  state->logged_user, src_path, dest_dir);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK File moved successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Source not found
+        write_log_detailed(state->client_addr, command, "-ERR Source file not found");
     }
 }
 

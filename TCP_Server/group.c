@@ -218,51 +218,45 @@ void handle_approve(conn_state_t *state, char *command) {
  **/
 void handle_invite(conn_state_t *state, char *command) {
     char username[MAX_USERNAME];
-    sscanf(command, "INVITE %s", username);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("INVITE", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "406");
-        return;
-    }
-
-    pthread_mutex_lock(&group_mutex);
-    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
-    pthread_mutex_unlock(&group_mutex);
-
-    if (!is_leader) {
-        tcp_send(state->sockfd, "406");
+    /* Parse command */
+    if (sscanf(command, "INVITE %s", username) != 1) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
     // Check if user exists and is not in group
     int user_found = 0;
-    int already_in_group = 0;
+    int target_user_group_id = -1;
 
     pthread_mutex_lock(&account_mutex);
     for (int i = 0; i < account_count; i++) {
         if (strcmp(accounts[i].username, username) == 0) {
             user_found = 1;
-            if (accounts[i].group_id == state->user_group_id) {
-                already_in_group = 1;
-            }
+            target_user_group_id = accounts[i].group_id;
             break;
         }
     }
     pthread_mutex_unlock(&account_mutex);
 
     if (!user_found) {
-    	//TODO: Dinh nghia ma tra ve
-        tcp_send(state->sockfd, "300");
+        tcp_send(state->sockfd, "500"); // User not found
+        write_log_detailed(state->client_addr, command, "-ERR User does not exist");
         return;
     }
 
-    if (already_in_group) {
-        tcp_send(state->sockfd, "405");
+    if (target_user_group_id != -1) {
+        tcp_send(state->sockfd, "407"); // User already in a group
+        write_log_detailed(state->client_addr, command, "-ERR User already in a group");
         return;
     }
 
@@ -284,15 +278,21 @@ void handle_invite(conn_state_t *state, char *command) {
             invite_count++;
             save_invites();
         } else {
-             // TODO: Dinh nghia ma tra ve
-             pthread_mutex_unlock(&invite_mutex);
-             tcp_send(state->sockfd, "300"); // Server full
-             return;
+            pthread_mutex_unlock(&invite_mutex);
+            tcp_send(state->sockfd, "504"); // Server full
+            write_log_detailed(state->client_addr, command, "-ERR Invite list full");
+            return;
         }
     }
     pthread_mutex_unlock(&invite_mutex);
 
     tcp_send(state->sockfd, "180");
+
+    char log_msg[256];
+    snprintf(log_msg, sizeof(log_msg), "User %s invited %s to group %d",
+             state->logged_user, username, state->user_group_id);
+    write_log(log_msg);
+    write_log_detailed(state->client_addr, command, "+OK Invite sent successfully");
 }
 
 /**
@@ -307,15 +307,19 @@ void handle_invite(conn_state_t *state, char *command) {
  **/
 void handle_accept(conn_state_t *state, char *command) {
     char group_name[MAX_GROUPNAME];
-    sscanf(command, "ACCEPT %s", group_name);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("ACCEPT", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id != -1) {
-        tcp_send(state->sockfd, "407");
+    /* Parse command */
+    if (sscanf(command, "ACCEPT %s", group_name) != 1) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
@@ -332,8 +336,8 @@ void handle_accept(conn_state_t *state, char *command) {
 
     // Group not exist
     if (group_id == -1) {
-    	//TODO: Dinh nghia ma tra ve
-        tcp_send(state->sockfd, "300");
+        tcp_send(state->sockfd, "500"); // Group not found
+        write_log_detailed(state->client_addr, command, "-ERR Group does not exist");
         return;
     }
 
@@ -348,9 +352,9 @@ void handle_accept(conn_state_t *state, char *command) {
 
     // Invite not exist
     if (invite_index == -1) {
-    	//TODO: Dinh nghia ma tra ve
         pthread_mutex_unlock(&invite_mutex);
-        tcp_send(state->sockfd, "300");
+        tcp_send(state->sockfd, "500"); // No invite found
+        write_log_detailed(state->client_addr, command, "-ERR No invite found for this group");
         return;
     }
 
@@ -375,6 +379,12 @@ void handle_accept(conn_state_t *state, char *command) {
     pthread_mutex_unlock(&account_mutex);
 
     tcp_send(state->sockfd, "190");
+
+    char log_msg[256];
+    snprintf(log_msg, sizeof(log_msg), "User %s accepted invite to group: %s (ID: %d)",
+             state->logged_user, group_name, group_id);
+    write_log(log_msg);
+    write_log_detailed(state->client_addr, command, "+OK Joined group successfully");
 }
 
 /**
@@ -406,24 +416,19 @@ void handle_leave(conn_state_t *state, char *command) {
  **/
 void handle_kick(conn_state_t *state, char *command) {
     char username[MAX_USERNAME];
-    sscanf(command, "KICK %s", username);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("KICK", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "406");
-        return;
-    }
-
-    pthread_mutex_lock(&group_mutex);
-    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
-    pthread_mutex_unlock(&group_mutex);
-
-    if (!is_leader) {
-        tcp_send(state->sockfd, "406");
+    /* Parse command */
+    if (sscanf(command, "KICK %s", username) != 1) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -443,10 +448,17 @@ void handle_kick(conn_state_t *state, char *command) {
 
     if (!user_found_in_group) {
         tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR Member not in group");
         return;
     }
 
     tcp_send(state->sockfd, "201");
+
+    char log_msg[256];
+    snprintf(log_msg, sizeof(log_msg), "User %s kicked %s from group %d",
+             state->logged_user, username, state->user_group_id);
+    write_log(log_msg);
+    write_log_detailed(state->client_addr, command, "+OK Member removed successfully");
 }
 
 /**
