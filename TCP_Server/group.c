@@ -201,8 +201,84 @@ void handle_join_group(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_approve(conn_state_t *state, char *command) {
-    // TODO: Implement approve
-    tcp_send(state->sockfd, "300");
+    char username[MAX_USERNAME];
+    
+    /* Check if logged in */
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+    
+    /* Parse command */
+    if (sscanf(command, "APPROVE %s", username) != 1) {
+        tcp_send(state->sockfd, "300");
+        return;
+    }
+    
+    /* Check if user is in a group */
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "404");
+        return;
+    }
+    
+    /* Check if user is group leader */
+    pthread_mutex_lock(&group_mutex);
+    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
+    pthread_mutex_unlock(&group_mutex);
+    
+    if (!is_leader) {
+        tcp_send(state->sockfd, "406");
+        return;
+    }
+    
+    /* Find the request */
+    pthread_mutex_lock(&request_mutex);
+    
+    int request_index = -1;
+    for (int i = 0; i < request_count; i++) {
+        if (strcmp(requests[i].username, username) == 0 &&
+            requests[i].group_id == state->user_group_id) {
+            request_index = i;
+            break;
+        }
+    }
+    
+    /* Request not found */
+    if (request_index == -1) {
+        pthread_mutex_unlock(&request_mutex);
+        tcp_send(state->sockfd, "500");
+        return;
+    }
+    
+    /* Remove the request */
+    for (int i = request_index; i < request_count - 1; i++) {
+        requests[i] = requests[i + 1];
+    }
+    request_count--;
+    save_requests();
+    
+    pthread_mutex_unlock(&request_mutex);
+    
+    /* Add user to group */
+    pthread_mutex_lock(&account_mutex);
+    
+    for (int i = 0; i < account_count; i++) {
+        if (strcmp(accounts[i].username, username) == 0) {
+            accounts[i].group_id = state->user_group_id;
+            break;
+        }
+    }
+    save_accounts();
+    
+    pthread_mutex_unlock(&account_mutex);
+    
+    /* Log the approval */
+    char log_msg[256];
+    snprintf(log_msg, sizeof(log_msg), "Approved: %s joined group %d", username, state->user_group_id);
+    write_log(log_msg);
+    
+    tcp_send(state->sockfd, "170");
+    printf("User %s approved %s to join group %d\n", state->logged_user, username, state->user_group_id);
 }
 
 /**
@@ -256,13 +332,12 @@ void handle_invite(conn_state_t *state, char *command) {
     pthread_mutex_unlock(&account_mutex);
 
     if (!user_found) {
-    	//TODO: Dinh nghia ma tra ve
-        tcp_send(state->sockfd, "300");
+        tcp_send(state->sockfd, "500");  /* User not found */
         return;
     }
 
     if (already_in_group) {
-        tcp_send(state->sockfd, "405");
+        tcp_send(state->sockfd, "407");
         return;
     }
 
@@ -284,9 +359,8 @@ void handle_invite(conn_state_t *state, char *command) {
             invite_count++;
             save_invites();
         } else {
-             // TODO: Dinh nghia ma tra ve
              pthread_mutex_unlock(&invite_mutex);
-             tcp_send(state->sockfd, "300"); // Server full
+             tcp_send(state->sockfd, "504");  /* Invite list full */
              return;
         }
     }
@@ -332,8 +406,7 @@ void handle_accept(conn_state_t *state, char *command) {
 
     // Group not exist
     if (group_id == -1) {
-    	//TODO: Dinh nghia ma tra ve
-        tcp_send(state->sockfd, "300");
+        tcp_send(state->sockfd, "500");  /* Group not found */
         return;
     }
 
@@ -348,9 +421,8 @@ void handle_accept(conn_state_t *state, char *command) {
 
     // Invite not exist
     if (invite_index == -1) {
-    	//TODO: Dinh nghia ma tra ve
         pthread_mutex_unlock(&invite_mutex);
-        tcp_send(state->sockfd, "300");
+        tcp_send(state->sockfd, "500");  /* No invite found */
         return;
     }
 
@@ -385,12 +457,92 @@ void handle_accept(conn_state_t *state, char *command) {
  *   200: Left group successfully
  *   400: Not logged in
  *   404: Not in any group
- *   408: Leader must remove all members first
  *   300: Syntax error
  **/
 void handle_leave(conn_state_t *state, char *command) {
-    // TODO: Implement leave
-    tcp_send(state->sockfd, "300");
+    /* Check if logged in */
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+    
+    /* Check if user is in a group */
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "404");
+        return;
+    }
+    
+    /* Check if user is the group leader */
+    pthread_mutex_lock(&group_mutex);
+    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
+    
+    /* If leader, check if there are other members */
+    if (is_leader) {
+        int member_count = count_group_members(state->user_group_id);
+        if (member_count > 1) {
+            pthread_mutex_unlock(&group_mutex);
+            tcp_send(state->sockfd, "408");
+            return;
+        }
+        
+        /* If leader is the only member, delete the group */
+        int group_index = -1;
+        char group_name[MAX_GROUPNAME];
+        for (int i = 0; i < group_count; i++) {
+            if (groups[i].group_id == state->user_group_id) {
+                group_index = i;
+                strcpy(group_name, groups[i].group_name);
+                break;
+            }
+        }
+        
+        /* Remove group from list */
+        if (group_index != -1) {
+            for (int i = group_index; i < group_count - 1; i++) {
+                groups[i] = groups[i + 1];
+            }
+            group_count--;
+            save_groups();
+        }
+        
+        pthread_mutex_unlock(&group_mutex);
+        
+        /* Delete group folder */
+        char folder_path[MAX_PATH];
+        snprintf(folder_path, sizeof(folder_path), "groups/%s", group_name);
+        /* Note: Not deleting folder to preserve files */
+        
+        /* Log group deletion */
+        char log_msg[256];
+        snprintf(log_msg, sizeof(log_msg), "Group deleted: %s (leader %s left)", group_name, state->logged_user);
+        write_log(log_msg);
+    } else {
+        pthread_mutex_unlock(&group_mutex);
+    }
+    
+    /* Remove user from group */
+    int old_group_id = state->user_group_id;
+    
+    pthread_mutex_lock(&account_mutex);
+    
+    for (int i = 0; i < account_count; i++) {
+        if (strcmp(accounts[i].username, state->logged_user) == 0) {
+            accounts[i].group_id = -1;
+            state->user_group_id = -1;
+            break;
+        }
+    }
+    save_accounts();
+    
+    pthread_mutex_unlock(&account_mutex);
+    
+    /* Log the leave action */
+    char log_msg[256];
+    snprintf(log_msg, sizeof(log_msg), "User %s left group %d", state->logged_user, old_group_id);
+    write_log(log_msg);
+    
+    tcp_send(state->sockfd, "200");
+    printf("User %s left group %d\n", state->logged_user, old_group_id);
 }
 
 /**
@@ -506,8 +658,41 @@ void handle_list_groups(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_list_members(conn_state_t *state, char *command) {
-    // TODO: Implement list members
-    tcp_send(state->sockfd, "300");
+    char response[BUFF_SIZE];
+    
+    /* Check if logged in */
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+    
+    /* Check if user is in a group */
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "404");
+        return;
+    }
+    
+    pthread_mutex_lock(&account_mutex);
+    
+    /* Build list of members in user's group */
+    snprintf(response, sizeof(response), "204 ");
+    int member_count = 0;
+    
+    for (int i = 0; i < account_count; i++) {
+        if (accounts[i].group_id == state->user_group_id) {
+            /* Add separator if not first member */
+            if (member_count > 0) {
+                strcat(response, ", ");
+            }
+            strcat(response, accounts[i].username);
+            member_count++;
+        }
+    }
+    
+    pthread_mutex_unlock(&account_mutex);
+    
+    tcp_send(state->sockfd, response);
+    printf("User %s listed members of group %d\n", state->logged_user, state->user_group_id);
 }
 
 /**
@@ -521,6 +706,54 @@ void handle_list_members(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_list_requests(conn_state_t *state, char *command) {
-    // TODO: Implement list requests
-    tcp_send(state->sockfd, "300");
+    char response[BUFF_SIZE];
+    
+    /* Check if logged in */
+    if (!state->is_logged_in) {
+        tcp_send(state->sockfd, "400");
+        return;
+    }
+    
+    /* Check if user is in a group */
+    if (state->user_group_id == -1) {
+        tcp_send(state->sockfd, "404");
+        return;
+    }
+    
+    /* Check if user is group leader */
+    pthread_mutex_lock(&group_mutex);
+    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
+    pthread_mutex_unlock(&group_mutex);
+    
+    if (!is_leader) {
+        tcp_send(state->sockfd, "406");
+        return;
+    }
+    
+    pthread_mutex_lock(&request_mutex);
+    
+    /* Build list of pending requests for this group */
+    snprintf(response, sizeof(response), "205 ");
+    int request_counter = 0;
+    
+    for (int i = 0; i < request_count; i++) {
+        if (requests[i].group_id == state->user_group_id) {
+            /* Add separator if not first request */
+            if (request_counter > 0) {
+                strcat(response, ", ");
+            }
+            strcat(response, requests[i].username);
+            request_counter++;
+        }
+    }
+    
+    pthread_mutex_unlock(&request_mutex);
+    
+    /* If no pending requests */
+    if (request_counter == 0) {
+        snprintf(response, sizeof(response), "205 No pending requests");
+    }
+    
+    tcp_send(state->sockfd, response);
+    printf("User %s listed requests for group %d\n", state->logged_user, state->user_group_id);
 }

@@ -6,21 +6,23 @@
 
 ## 🎯 Người 1: Core Network (Hạ tầng mạng & Truyền tải)
 
-**Status:** Ready to Start  
+**Status:** ALL COMPLETE ✅ (Integrated)
 **Files:** `network.c`, `file_ops.c`, `TCP_Client/network.c`, `TCP_Client/commands.c`
 
 | Task | Status | Notes |
 |------|--------|-------|
-| tcp_send | ✅ Done | Already implemented in skeleton |
-| tcp_receive | ✅ Done | Already implemented in skeleton |
-| send_file | 🔜 Todo | Need chunked transfer for large files |
-| receive_file | 🔜 Todo | Depends on send_file |
-| UPLOAD (server) | 🔜 Todo | Need LOGIN from Person 2 |
-| UPLOAD (client) | 🔜 Todo | |
-| DOWNLOAD (server) | 🔜 Todo | |
-| DOWNLOAD (client) | 🔜 Todo | |
-| Access control | 🔜 Todo | Check group membership |
-| Logging | ✅ Done | write_log() already available |
+| tcp_send | ✅ Done | Implemented |
+| tcp_receive | ✅ Done | Implemented |
+| send_all | ✅ Done | Ensures all data sent |
+| get_file_size | ✅ Done | Detects file/folder/other |
+| send_file_content | ✅ Done | Chunked transfer |
+| receive_file_content | ✅ Done | Chunked transfer |
+| UPLOAD (server) | ✅ Done | Error codes: 141, 140, 400, 404, 502, 503 |
+| UPLOAD (client) | ✅ Done | Progress indicator |
+| DOWNLOAD (server) | ✅ Done | Error codes: 151, 150, 400, 404, 500, 504 |
+| DOWNLOAD (client) | ✅ Done | Progress indicator |
+| RBAC | ✅ Done | role_based_access_control() |
+| Logging | ✅ Done | write_log() + write_log_detailed() |
 
 **Blockers:** 
 - ~~Need LOGIN/CREATE from Person 2~~ ✅ LOGIN is ready!
@@ -38,30 +40,30 @@
 
 ## 🎯 Người 2: Auth & Basic Group (Người dùng & Nhóm cơ bản)
 
-**Status:** Phase 1 Complete ✅  
+**Status:** ALL COMPLETE ✅  
 **Files:** `auth.c`, `group.c`, `TCP_Client/commands.c`
 
 | Task | Status | Notes |
 |------|--------|-------|
-| REGISTER (server) | ✅ Done | Tested - works with error codes 120, 501, 403, 504 |
-| REGISTER (client) | ✅ Done | UI complete with input validation |
-| LOGIN (server) | ✅ Done | Tested - works with error codes 110, 401, 402, 403 |
-| LOGIN (client) | ✅ Done | Updates is_logged_in status |
-| LOGOUT (server) | ✅ Done | Tested - works with error codes 130, 400 |
-| LOGOUT (client) | ✅ Done | Clears login status |
-| CREATE (server) | ✅ Done | Creates group, assigns leader, creates folder |
-| CREATE (client) | ✅ Done | Validates group name (no spaces) |
-| JOIN (server) | 🔜 Todo | |
-| JOIN (client) | 🔜 Todo | |
-| APPROVE (server) | 🔜 Todo | |
+| REGISTER (server) | ✅ Done | Error codes: 120, 501, 403, 504 |
+| REGISTER (client) | ✅ Done | Input validation |
+| LOGIN (server) | ✅ Done | Error codes: 110, 401, 402, 403 |
+| LOGIN (client) | ✅ Done | Updates is_logged_in |
+| LOGOUT (server) | ✅ Done | Error codes: 130, 400 |
+| LOGOUT (client) | ✅ Done | Clears status |
+| CREATE (server) | ✅ Done | Creates folder, assigns leader |
+| CREATE (client) | ✅ Done | Validates name |
+| JOIN (server) | ✅ Done | Saves to requests.txt |
+| JOIN (client) | ✅ Done | Simple UI |
+| APPROVE (server) | 🔜 Todo | Need to implement |
 | APPROVE (client) | 🔜 Todo | |
-| LIST_GROUPS (server) | ✅ Done | Shows all groups with ID, name, leader |
+| LIST_GROUPS (server) | ✅ Done | Shows all groups |
 | LIST_GROUPS (client) | ✅ Done | Simple UI |
-| LIST_MEMBERS (server) | 🔜 Todo | |
+| LIST_MEMBERS (server) | 🔜 Todo | Need to implement |
 | LIST_MEMBERS (client) | 🔜 Todo | |
-| LIST_REQUESTS (server) | 🔜 Todo | |
+| LIST_REQUESTS (server) | 🔜 Todo | Need to implement |
 | LIST_REQUESTS (client) | 🔜 Todo | |
-| LEAVE (server) | 🔜 Todo | |
+| LEAVE (server) | 🔜 Todo | Need to implement |
 | LEAVE (client) | 🔜 Todo | |
 
 **Blockers:** None
@@ -140,32 +142,33 @@
 | LOGOUT | ✅ | ✅ | ✅ | ✅ | Supports error codes: 130, 400 |
 | **Group Management** |
 | CREATE | ✅ | ✅ | ✅ | ✅ | Error codes: 202, 400, 407, 501, 504 |
-| JOIN | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| APPROVE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| INVITE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| ACCEPT | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| LEAVE | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| KICK | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| JOIN | ✅ | ✅ | ✅ | ✅ | Error codes: 160, 400, 407, 500, 504 |
+| APPROVE | 🔜 | 🔜 | ⏸️ | ⏸️ | Need to implement |
+| INVITE | ✅ | ✅ | ✅ | ✅ | Error codes: 180, 400, 406, 407, 500, 504 |
+| ACCEPT | ✅ | ✅ | ✅ | ✅ | Error codes: 190, 400, 407, 500 |
+| LEAVE | 🔜 | 🔜 | ⏸️ | ⏸️ | Need to implement |
+| KICK | ✅ | ✅ | ✅ | ✅ | Error codes: 201, 400, 406, 500 |
 | LIST_GROUPS | ✅ | ✅ | ✅ | ✅ | Error codes: 203, 400 |
 | LIST_MEMBERS | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | LIST_REQUESTS | 🔜 | 🔜 | ⏸️ | ⏸️ | |
 | **File Transfer** |
-| send_file | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| receive_file | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| UPLOAD | 🔜 | 🔜 | ⏸️ | ⏸️ | |
-| DOWNLOAD | 🔜 | 🔜 | ⏸️ | ⏸️ | |
+| send_all | ✅ | ✅ | ✅ | ✅ | Ensures complete data transfer |
+| send_file_content | ✅ | N/A | ✅ | ✅ | Chunked file sending |
+| receive_file_content | ✅ | ✅ | ✅ | ✅ | Chunked file receiving |
+| UPLOAD | ✅ | ✅ | ✅ | ✅ | Error codes: 141, 140, 400, 404, 502, 503 |
+| DOWNLOAD | ✅ | ✅ | ✅ | ✅ | Error codes: 151, 150, 400, 404, 500, 504 |
 | **File Operations** |
-| MKDIR | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| LIST_CONTENT | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| RENAME_FILE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| DELETE_FILE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| COPY_FILE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| MOVE_FILE | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| MKDIR | ✅ | ✅ | ✅ | ✅ | Error codes: 220, 400, 404, 501 |
+| LIST_CONTENT | ✅ | ✅ | ✅ | ✅ | Error codes: 225, 400, 404, 500 |
+| RENAME_FILE | ✅ | ✅ | ✅ | ✅ | Error codes: 210, 400, 404, 406, 500, 501 |
+| DELETE_FILE | ✅ | ✅ | ✅ | ✅ | Error codes: 211, 400, 404, 406, 500 |
+| COPY_FILE | ✅ | ✅ | ✅ | ✅ | Error codes: 212, 400, 404, 500, 503 |
+| MOVE_FILE | ✅ | ✅ | ✅ | ✅ | Error codes: 213, 400, 404, 500, 503 |
 | **Folder Operations** |
-| RENAME_FOLDER | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| RMDIR | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| COPY_FOLDER | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
-| MOVE_FOLDER | ✅ | ✅ | ⏸️ | ⏸️ | Client done, need LOGIN |
+| RENAME_FOLDER | ✅ | ✅ | ✅ | ✅ | Error codes: 221, 400, 404, 406, 500, 501 |
+| RMDIR | ✅ | ✅ | ✅ | ✅ | Error codes: 222, 400, 404, 406, 500 |
+| COPY_FOLDER | ✅ | ✅ | ✅ | ✅ | Error codes: 223, 400, 404, 500, 503 |
+| MOVE_FOLDER | ✅ | ✅ | ✅ | ✅ | Error codes: 224, 400, 404, 500, 503 |
 
 **Legend:**
 - ✅ Done
@@ -186,11 +189,14 @@ None yet.
 
 | Week | Person 1 | Person 2 | Person 3 | Total |
 |------|----------|----------|----------|-------|
-| Week 1 | 0 | 10 ✅ | 0 | 10 |
+| Week 1 | 12 ✅ | 12 ✅ | 14 ✅ | 38 |
 
 **Target:** 30 tasks total (10 per person)
 
-**Person 2 Progress:** 10/13 tasks (77%) - Auth + CREATE + LIST_GROUPS complete
+**Progress:**
+- Person 1: 12/12 tasks (100%) ✅ COMPLETE
+- Person 2: 12/13 tasks (92%) - Need APPROVE, LIST_MEMBERS, LIST_REQUESTS, LEAVE
+- Person 3: 14/14 tasks (100%) ✅ COMPLETE
 
 ---
 
@@ -198,11 +204,11 @@ None yet.
 
 - [x] **Milestone 1:** Authentication working (REGISTER, LOGIN, LOGOUT) ✅
 - [x] **Milestone 2:** Group creation and listing (CREATE, LIST_GROUPS) ✅
-- [ ] **Milestone 3:** Group join flow (JOIN, APPROVE, LIST_MEMBERS)
-- [ ] **Milestone 4:** File transfer (UPLOAD, DOWNLOAD)
-- [ ] **Milestone 5:** Basic file operations (MKDIR, LIST_CONTENT)
-- [ ] **Milestone 6:** Advanced file operations (RENAME, DELETE, COPY, MOVE)
-- [ ] **Milestone 7:** Advanced group features (INVITE, ACCEPT, KICK, LEAVE)
+- [x] **Milestone 3:** Group join flow (JOIN, APPROVE, LIST_MEMBERS) - Partial (JOIN done)
+- [x] **Milestone 4:** File transfer (UPLOAD, DOWNLOAD) ✅
+- [x] **Milestone 5:** Basic file operations (MKDIR, LIST_CONTENT) ✅
+- [x] **Milestone 6:** Advanced file operations (RENAME, DELETE, COPY, MOVE) ✅
+- [x] **Milestone 7:** Advanced group features (INVITE, ACCEPT, KICK, LEAVE) - Partial (INVITE, ACCEPT, KICK done)
 - [ ] **Milestone 8:** Full integration testing
 - [ ] **Milestone 9:** Performance optimization
 - [ ] **Milestone 10:** Documentation and demo
