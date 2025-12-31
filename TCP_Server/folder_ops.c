@@ -58,7 +58,7 @@ static void resolve_path(char *full_path, int group_id, const char *user_path) {
 void handle_mkdir(conn_state_t *state, char *command) {
     char path[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("MKDIR", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -66,7 +66,7 @@ void handle_mkdir(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "MKDIR %s", path) != 1) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -109,7 +109,7 @@ void handle_mkdir(conn_state_t *state, char *command) {
 void handle_rename_folder(conn_state_t *state, char *command) {
     char old_name[MAX_PATH], new_name[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("RENAME_FOLDER", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -117,7 +117,7 @@ void handle_rename_folder(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "RENAME_FOLDER %s %s", old_name, new_name) != 2) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -172,7 +172,7 @@ void handle_rename_folder(conn_state_t *state, char *command) {
 void handle_rmdir(conn_state_t *state, char *command) {
     char path[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("RMDIR", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -180,7 +180,7 @@ void handle_rmdir(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "RMDIR %s", path) != 1) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -218,7 +218,7 @@ void handle_rmdir(conn_state_t *state, char *command) {
 void handle_copy_folder(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_path[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("COPY_FOLDER", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -226,7 +226,7 @@ void handle_copy_folder(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "COPY_FOLDER %s %s", src_path, dest_path) != 2) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -288,7 +288,7 @@ void handle_copy_folder(conn_state_t *state, char *command) {
 void handle_move_folder(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_dir[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("MOVE_FOLDER", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -296,7 +296,7 @@ void handle_move_folder(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "MOVE_FOLDER %s %s", src_path, dest_dir) != 2) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -355,7 +355,7 @@ void handle_move_folder(conn_state_t *state, char *command) {
 void handle_list_content(conn_state_t *state, char *command) {
     char path[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("LIST_CONTENT", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -423,4 +423,3 @@ void handle_list_content(conn_state_t *state, char *command) {
     tcp_send(state->sockfd, response);
     write_log_detailed(state->client_addr, command, "+OK Content listed successfully");
 }
-

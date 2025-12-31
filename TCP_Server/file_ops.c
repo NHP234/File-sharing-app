@@ -220,7 +220,7 @@ void handle_download(conn_state_t *state, char *command) {
 void handle_rename_file(conn_state_t *state, char *command) {
     char old_name[MAX_PATH], new_name[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("RENAME_FILE", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -228,7 +228,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "RENAME_FILE %s %s", old_name, new_name) != 2) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -250,7 +250,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
 
     snprintf(new_phys_path, sizeof(new_phys_path), "%s/%s", parent_dir, new_name);
 
-    /* Check if file is locked (being uploaded/downloaded) */
+    // Check if file is locked (being uploaded/downloaded)
     int fd = open(old_phys_path, O_RDWR);
     if (fd == -1) {
         tcp_send(state->sockfd, "500");
@@ -258,7 +258,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
         return;
     }
     
-    /* Try to get exclusive lock (non-blocking) */
+    // Try to get exclusive lock (non-blocking)
     if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
         tcp_send(state->sockfd, "505");
@@ -284,7 +284,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
         write_log_detailed(state->client_addr, command, "-ERR File not found");
     }
 
-    /* Release lock after operation completes */
+    // Release lock after operation completes
     flock(fd, LOCK_UN);
     close(fd);
 }
@@ -304,7 +304,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
 void handle_delete_file(conn_state_t *state, char *command) {
     char path[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("DELETE_FILE", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -312,7 +312,7 @@ void handle_delete_file(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "DELETE_FILE %s", path) != 1) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -322,7 +322,7 @@ void handle_delete_file(conn_state_t *state, char *command) {
     char phys_path[MAX_PATH];
     resolve_path(phys_path, state->user_group_id, path);
 
-    /* Check if file is locked (being uploaded/downloaded) */
+    // Check if file is locked (being uploaded/downloaded)
     int fd = open(phys_path, O_RDWR);
     if (fd == -1) {
         tcp_send(state->sockfd, "500");
@@ -330,7 +330,7 @@ void handle_delete_file(conn_state_t *state, char *command) {
         return;
     }
     
-    /* Try to get exclusive lock (non-blocking) */
+    // Try to get exclusive lock (non-blocking)
     if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
         tcp_send(state->sockfd, "505");
@@ -346,7 +346,7 @@ void handle_delete_file(conn_state_t *state, char *command) {
         write_log_detailed(state->client_addr, command, "-ERR File not found");
     }
 
-    /* Release lock after operation completes */
+    // Release lock after operation completes
     flock(fd, LOCK_UN);
     close(fd);
 }
@@ -366,7 +366,7 @@ void handle_delete_file(conn_state_t *state, char *command) {
 void handle_copy_file(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_path[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("COPY_FILE", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -374,7 +374,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "COPY_FILE %s %s", src_path, dest_path) != 2) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -389,7 +389,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
 
     FILE *in = fopen(src_phys, "rb");
     if (!in) {
-        tcp_send(state->sockfd, "500"); /* Source not found */
+        tcp_send(state->sockfd, "500"); // Source not found
         write_log_detailed(state->client_addr, command, "-ERR Source file not found");
         return;
     }
@@ -439,7 +439,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "212");
         write_log_detailed(state->client_addr, command, "+OK File copied successfully");
     } else {
-        tcp_send(state->sockfd, "500"); /* Copy failed */
+        tcp_send(state->sockfd, "500"); // Copy failed
         write_log_detailed(state->client_addr, command, "-ERR Copy operation failed");
     }
 }
@@ -459,7 +459,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
 void handle_move_file(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_dir[MAX_PATH];
 
-    /* Check access control */
+    // Check access control
     char *access_error = role_based_access_control("MOVE_FILE", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -467,7 +467,7 @@ void handle_move_file(conn_state_t *state, char *command) {
         return;
     }
 
-    /* Parse command */
+    // Parse command
     if (sscanf(command, "MOVE_FILE %s %s", src_path, dest_dir) != 2) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
@@ -481,7 +481,7 @@ void handle_move_file(conn_state_t *state, char *command) {
     resolve_path(src_phys, state->user_group_id, src_path);
     resolve_path(dest_folder_phys, state->user_group_id, dest_dir);
 
-    /* Check if file is locked (being uploaded/downloaded) */
+    // Check if file is locked (being uploaded/downloaded)
     int fd = open(src_phys, O_RDWR);
     if (fd == -1) {
         tcp_send(state->sockfd, "500");
@@ -489,7 +489,7 @@ void handle_move_file(conn_state_t *state, char *command) {
         return;
     }
     
-    /* Try to get exclusive lock (non-blocking) */
+    // Try to get exclusive lock (non-blocking)
     if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
         tcp_send(state->sockfd, "505");
@@ -524,7 +524,7 @@ void handle_move_file(conn_state_t *state, char *command) {
         write_log_detailed(state->client_addr, command, "-ERR Source file not found");
     }
 
-    /* Release lock after operation completes */
+    // Release lock after operation completes
     flock(fd, LOCK_UN);
     close(fd);
 }
