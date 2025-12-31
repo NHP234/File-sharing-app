@@ -130,10 +130,6 @@ void handle_upload(conn_state_t *state, char *command) {
     
     if (ret == 0) {
         tcp_send(state->sockfd, "140");
-        
-        char log_msg[512];
-        snprintf(log_msg, sizeof(log_msg), "User %s uploaded: %s (%lld bytes)", 
-                 state->logged_user, filename, filesize);
         write_log_detailed(state->client_addr, command, "+OK Successful upload");
         
         printf("Upload complete: %s by %s\n", filename, state->logged_user);
