@@ -44,27 +44,6 @@ static void resolve_path(char *full_path, int group_id, const char *user_path) {
     }
 }
 
-/**
- * @function file_lock: Lock a file for reading or writing
- * @param fd: File descriptor
- * @param type: Lock type (F_RDLCK, F_WRLCK, F_UNLCK)
- * @return: 0 on success, -1 on failure
- **/
-static int file_lock(int fd, int type) {
-    struct flock lock;
-    memset(&lock, 0, sizeof(lock));
-    lock.l_type = type;
-    lock.l_whence = SEEK_SET;
-    lock.l_start = 0;
-    lock.l_len = 0; // Lock entire file
-
-    if (fcntl(fd, F_SETLKW, &lock) == -1) {
-        perror("fcntl lock failed");
-        return -1;
-    }
-    return 0;
-}
-
 /* ==================== FILE OPERATION COMMAND HANDLERS ==================== */
 
 /**
@@ -123,10 +102,8 @@ void handle_upload(conn_state_t *state, char *command) {
     /* Send ready signal */
     tcp_send(state->sockfd, "141");
     
-    /* Receive file content */
-    pthread_mutex_lock(&file_mutex);
+    /* Receive file content with file lock */
     int ret = receive_file_content(state->sockfd, state, filepath, filesize);
-    pthread_mutex_unlock(&file_mutex);
     
     if (ret == 0) {
         tcp_send(state->sockfd, "140");
@@ -204,10 +181,8 @@ void handle_download(conn_state_t *state, char *command) {
     snprintf(msg, sizeof(msg), "151 %lld", filesize);
     tcp_send(state->sockfd, msg);
     
-    /* Send file content */
-    pthread_mutex_lock(&file_mutex);
+    /* Send file content with file lock */
     int ret = send_file_content(state->sockfd, filepath);
-    pthread_mutex_unlock(&file_mutex);
     
     if (ret == 0) {
         tcp_send(state->sockfd, "150");

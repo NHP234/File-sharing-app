@@ -344,6 +344,26 @@ int count_group_members(int group_id) {
 }
 
 /**
+ * @function sync_user_group_id: Sync user's group_id from accounts to state
+ * @param state: Connection state
+ * @note: Called automatically by RBAC to refresh group membership
+ **/
+void sync_user_group_id(conn_state_t *state) {
+    if (!state->is_logged_in) {
+        return;
+    }
+    
+    pthread_mutex_lock(&account_mutex);
+    for (int i = 0; i < account_count; i++) {
+        if (strcmp(accounts[i].username, state->logged_user) == 0) {
+            state->user_group_id = accounts[i].group_id;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&account_mutex);
+}
+
+/**
  * @function role_based_access_control: Check if user has permission to execute command
  * @param command: Command string (first word only, e.g., "UPLOAD", "DOWNLOAD")
  * @param state: Connection state of the client
@@ -359,6 +379,9 @@ char* role_based_access_control(const char *command, conn_state_t *state) {
     if (!state->is_logged_in) {
         return "400";
     }
+    
+    /* Sync group_id from accounts to prevent stale state */
+    sync_user_group_id(state);
     
     /* Only require login */
     if (strcmp(command, "JOIN") == 0 ||
