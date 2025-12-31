@@ -165,33 +165,7 @@ void handle_download(conn_state_t *state, char *command) {
         return;
     }
     
-    /* Check if file is locked (being uploaded) */
-    int fd = open(filepath, O_RDONLY);
-    if (fd == -1) {
-        tcp_send(state->sockfd, "500");
-        write_log_detailed(state->client_addr, command, "-ERR Cannot access file");
-        return;
-    }
     
-    struct flock lock;
-    memset(&lock, 0, sizeof(lock));
-    lock.l_type = F_RDLCK;
-    lock.l_whence = SEEK_SET;
-    lock.l_start = 0;
-    lock.l_len = 0;
-    
-    /* Try to get read lock (non-blocking) - will fail if file has write lock */
-    if (fcntl(fd, F_SETLK, &lock) == -1) {
-        close(fd);
-        tcp_send(state->sockfd, "505");
-        write_log_detailed(state->client_addr, command, "-ERR File is being uploaded");
-        return;
-    }
-    
-    /* Release the test lock */
-    lock.l_type = F_UNLCK;
-    fcntl(fd, F_SETLK, &lock);
-    close(fd);
     
     /* Send file size */
     char msg[100];
