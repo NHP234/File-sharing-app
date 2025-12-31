@@ -166,26 +166,8 @@ void handle_download(conn_state_t *state, char *command) {
         return;
     }
     
-    /* Check if file is locked (being uploaded) */
-    int fd = open(filepath, O_RDONLY);
-    if (fd == -1) {
-        tcp_send(state->sockfd, "500");
-        write_log_detailed(state->client_addr, command, "-ERR Cannot access file");
-        return;
-    }
-    
-    /* Try to get shared lock (non-blocking) - will fail if file has exclusive lock */
-    if (flock(fd, LOCK_SH | LOCK_NB) == -1) {
-        close(fd);
-        tcp_send(state->sockfd, "505");
-        write_log_detailed(state->client_addr, command, "-ERR File is being uploaded");
-        return;
-    }
-    
-    /* Release the test lock */
-    flock(fd, LOCK_UN);
-    close(fd);
-    
+
+
     /* Send file size */
     char msg[100];
     snprintf(msg, sizeof(msg), "151 %lld", filesize);
