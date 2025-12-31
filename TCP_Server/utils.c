@@ -305,7 +305,7 @@ char* get_group_folder_path(int group_id, char *buffer, int buf_size) {
     /* Find group name */
     for (int i = 0; i < group_count; i++) {
         if (groups[i].group_id == group_id) {
-            snprintf(buffer, buf_size, "TCP_Server/groups/%s", groups[i].group_name);
+            snprintf(buffer, buf_size, "groups/%s", groups[i].group_name);
             return buffer;
         }
     }

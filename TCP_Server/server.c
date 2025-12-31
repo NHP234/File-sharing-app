@@ -106,10 +106,7 @@ void *handle_client(void *arg) {
             if (strcmp(accounts[i].username, state->logged_user) == 0) {
                 accounts[i].is_logged_in = 0;
                 printf("User %s disconnected (auto logout)\n", state->logged_user);
-                
-                char log_msg[256];
-                snprintf(log_msg, sizeof(log_msg), "User %s disconnected", state->logged_user);
-                write_log(log_msg);
+                write_log_detailed(state->client_addr, "", "+INFO User disconnected (auto logout)");
                 break;
             }
         }
@@ -195,7 +192,7 @@ int main(int argc, char *argv[]) {
     printf("  Waiting for connections...\n");
     printf("===========================================\n");
     
-    write_log("Server started");
+    write_log_detailed("SERVER", "", "+INFO Server started");
     
     /* Accept connections */
     while (1) {

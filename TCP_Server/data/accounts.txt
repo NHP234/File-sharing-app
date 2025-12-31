@@ -1,4 +1,4 @@
 tungbt 1 2
 admin 1 1
 ductq 0 -1
-Phuc Phuc 1
+Phuc Phuc -1
