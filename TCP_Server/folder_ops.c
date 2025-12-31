@@ -138,7 +138,7 @@ void handle_rename_folder(conn_state_t *state, char *command) {
         return;
     }
     if (!S_ISDIR(st_check.st_mode)) {
-        tcp_send(state->sockfd, "506");
+        tcp_send(state->sockfd, "504");
         write_log_detailed(state->client_addr, command, "-ERR Cannot rename file as folder");
         return;
     }
@@ -211,7 +211,7 @@ void handle_rmdir(conn_state_t *state, char *command) {
         return;
     }
     if (!S_ISDIR(st_check.st_mode)) {
-        tcp_send(state->sockfd, "506");
+        tcp_send(state->sockfd, "504");
         write_log_detailed(state->client_addr, command, "-ERR Cannot delete file as folder");
         return;
     }
@@ -344,7 +344,7 @@ void handle_move_folder(conn_state_t *state, char *command) {
         return;
     }
     if (!S_ISDIR(st_check.st_mode)) {
-        tcp_send(state->sockfd, "506");
+        tcp_send(state->sockfd, "504");
         write_log_detailed(state->client_addr, command, "-ERR Cannot move file as folder");
         return;
     }
