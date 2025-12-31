@@ -258,7 +258,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
     snprintf(new_phys_path, sizeof(new_phys_path), "%s/%s", parent_dir, new_name);
 
     /* Check if file is locked (being uploaded/downloaded) */
-    int fd = open(old_phys_path, O_RDONLY);
+    int fd = open(old_phys_path, O_RDWR);
     if (fd == -1) {
         tcp_send(state->sockfd, "500");
         write_log_detailed(state->client_addr, command, "-ERR File not found");
@@ -333,7 +333,7 @@ void handle_delete_file(conn_state_t *state, char *command) {
     resolve_path(phys_path, state->user_group_id, path);
 
     /* Check if file is locked (being uploaded/downloaded) */
-    int fd = open(phys_path, O_RDONLY);
+    int fd = open(phys_path, O_RDWR);
     if (fd == -1) {
         tcp_send(state->sockfd, "500");
         write_log_detailed(state->client_addr, command, "-ERR File not found");
@@ -497,7 +497,7 @@ void handle_move_file(conn_state_t *state, char *command) {
     resolve_path(dest_folder_phys, state->user_group_id, dest_dir);
 
     /* Check if file is locked (being uploaded/downloaded) */
-    int fd = open(src_phys, O_RDONLY);
+    int fd = open(src_phys, O_RDWR);
     if (fd == -1) {
         tcp_send(state->sockfd, "500");
         write_log_detailed(state->client_addr, command, "-ERR File not found");
