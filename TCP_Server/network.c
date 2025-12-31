@@ -1,22 +1,15 @@
 #include "common.h"
-#include <fcntl.h>
+#include <sys/file.h>
 
 /**
- * @function file_lock: Lock a file for reading or writing
+ * @function file_lock: Lock a file for reading or writing using flock
  * @param fd: File descriptor
- * @param type: Lock type (F_RDLCK, F_WRLCK, F_UNLCK)
+ * @param operation: Lock operation (LOCK_SH, LOCK_EX, LOCK_UN, or with LOCK_NB for non-blocking)
  * @return: 0 on success, -1 on failure
  **/
-int file_lock(int fd, int type) {
-    struct flock lock;
-    memset(&lock, 0, sizeof(lock));
-    lock.l_type = type;
-    lock.l_whence = SEEK_SET;
-    lock.l_start = 0;
-    lock.l_len = 0; // Lock entire file
-
-    if (fcntl(fd, F_SETLKW, &lock) == -1) {
-        perror("fcntl lock failed");
+int file_lock(int fd, int operation) {
+    if (flock(fd, operation) == -1) {
+        perror("flock failed");
         return -1;
     }
     return 0;
@@ -161,7 +154,7 @@ int send_file_content(int sockfd, const char *filepath) {
     int fd = fileno(fp);
     
     /* Lock file for reading */
-    if (file_lock(fd, F_RDLCK) == -1) {
+    if (file_lock(fd, LOCK_SH) == -1) {
         fclose(fp);
         return -1;
     }
@@ -172,14 +165,14 @@ int send_file_content(int sockfd, const char *filepath) {
     while ((n_read = fread(file_buf, 1, sizeof(file_buf), fp)) > 0) {
         int n_sent = send_all(sockfd, file_buf, n_read);
         if (n_sent < 0) {
-            file_lock(fd, F_UNLCK);
+            file_lock(fd, LOCK_UN);
             fclose(fp);
             return -1;
         }
     }
     
 
-    file_lock(fd, F_UNLCK);
+    file_lock(fd, LOCK_UN);
     fclose(fp);
     return 0;
 }
@@ -202,7 +195,7 @@ int receive_file_content(int sockfd, conn_state_t *state, const char *filepath, 
     int fd = fileno(fp);
     
     
-    if (file_lock(fd, F_WRLCK) == -1) {
+    if (file_lock(fd, LOCK_EX) == -1) {
         fclose(fp);
         return -1;
     }
@@ -239,7 +232,7 @@ int receive_file_content(int sockfd, conn_state_t *state, const char *filepath, 
 
         n = recv(sockfd, file_buf, bytes_to_recv, 0);
         if (n <= 0) {
-            file_lock(fd, F_UNLCK);
+            file_lock(fd, LOCK_UN);
             fclose(fp);
             return -2;
         }
@@ -249,7 +242,7 @@ int receive_file_content(int sockfd, conn_state_t *state, const char *filepath, 
     }
 
     
-    file_lock(fd, F_UNLCK);
+    file_lock(fd, LOCK_UN);
     fclose(fp);
     printf("File saved: %s (%lld bytes)\n", filepath, total_received);
     return 0;

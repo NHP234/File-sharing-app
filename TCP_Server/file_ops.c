@@ -1,5 +1,6 @@
 #include "common.h"
 #include <fcntl.h>
+#include <sys/file.h>
 #include <libgen.h>
 #include <sys/stat.h>
 
@@ -173,15 +174,8 @@ void handle_download(conn_state_t *state, char *command) {
         return;
     }
     
-    struct flock lock;
-    memset(&lock, 0, sizeof(lock));
-    lock.l_type = F_RDLCK;
-    lock.l_whence = SEEK_SET;
-    lock.l_start = 0;
-    lock.l_len = 0;
-    
-    /* Try to get read lock (non-blocking) - will fail if file has write lock */
-    if (fcntl(fd, F_SETLK, &lock) == -1) {
+    /* Try to get shared lock (non-blocking) - will fail if file has exclusive lock */
+    if (flock(fd, LOCK_SH | LOCK_NB) == -1) {
         close(fd);
         tcp_send(state->sockfd, "505");
         write_log_detailed(state->client_addr, command, "-ERR File is being uploaded");
@@ -189,8 +183,7 @@ void handle_download(conn_state_t *state, char *command) {
     }
     
     /* Release the test lock */
-    lock.l_type = F_UNLCK;
-    fcntl(fd, F_SETLK, &lock);
+    flock(fd, LOCK_UN);
     close(fd);
     
     /* Send file size */
@@ -265,26 +258,19 @@ void handle_rename_file(conn_state_t *state, char *command) {
         return;
     }
     
-    struct flock lock;
-    memset(&lock, 0, sizeof(lock));
-    lock.l_type = F_WRLCK;
-    lock.l_whence = SEEK_SET;
-    lock.l_start = 0;
-    lock.l_len = 0;
-    
-    /* Try to get write lock (non-blocking) */
-    if (fcntl(fd, F_SETLK, &lock) == -1) {
+    /* Try to get exclusive lock (non-blocking) */
+    if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
         tcp_send(state->sockfd, "505");
         write_log_detailed(state->client_addr, command, "-ERR File is being used");
         return;
     }
-    
-    close(fd);
 
     // Check if new name already exists
     struct stat st;
     if (stat(new_phys_path, &st) == 0) {
+        flock(fd, LOCK_UN);
+        close(fd);
         tcp_send(state->sockfd, "501"); /* Name already exists */
         write_log_detailed(state->client_addr, command, "-ERR New file name already exists");
         return;
@@ -297,6 +283,10 @@ void handle_rename_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "500"); // file not found
         write_log_detailed(state->client_addr, command, "-ERR File not found");
     }
+
+    /* Release lock after operation completes */
+    flock(fd, LOCK_UN);
+    close(fd);
 }
 
 /**
@@ -340,22 +330,13 @@ void handle_delete_file(conn_state_t *state, char *command) {
         return;
     }
     
-    struct flock lock;
-    memset(&lock, 0, sizeof(lock));
-    lock.l_type = F_WRLCK;
-    lock.l_whence = SEEK_SET;
-    lock.l_start = 0;
-    lock.l_len = 0;
-    
-    /* Try to get write lock (non-blocking) */
-    if (fcntl(fd, F_SETLK, &lock) == -1) {
+    /* Try to get exclusive lock (non-blocking) */
+    if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
         tcp_send(state->sockfd, "505");
         write_log_detailed(state->client_addr, command, "-ERR File is being used");
         return;
     }
-    
-    close(fd);
 
     if (unlink(phys_path) == 0) {
         tcp_send(state->sockfd, "211");
@@ -364,6 +345,10 @@ void handle_delete_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "500"); /* File not found */
         write_log_detailed(state->client_addr, command, "-ERR File not found");
     }
+
+    /* Release lock after operation completes */
+    flock(fd, LOCK_UN);
+    close(fd);
 }
 
 /**
@@ -410,7 +395,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
     }
 
     // Lock source file
-    if (file_lock(fileno(in), F_RDLCK) == -1) {
+    if (file_lock(fileno(in), LOCK_SH) == -1) {
         fclose(in);
         tcp_send(state->sockfd, "500");
         write_log_detailed(state->client_addr, command, "-ERR Cannot lock source file");
@@ -427,7 +412,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
     }
 
     // Lock destination file for writing
-    if (file_lock(fileno(out), F_WRLCK) == -1) {
+    if (file_lock(fileno(out), LOCK_EX) == -1) {
         fclose(out);
         fclose(in);
         tcp_send(state->sockfd, "500");
@@ -504,26 +489,19 @@ void handle_move_file(conn_state_t *state, char *command) {
         return;
     }
     
-    struct flock lock;
-    memset(&lock, 0, sizeof(lock));
-    lock.l_type = F_WRLCK;
-    lock.l_whence = SEEK_SET;
-    lock.l_start = 0;
-    lock.l_len = 0;
-    
-    /* Try to get write lock (non-blocking) */
-    if (fcntl(fd, F_SETLK, &lock) == -1) {
+    /* Try to get exclusive lock (non-blocking) */
+    if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
         tcp_send(state->sockfd, "505");
         write_log_detailed(state->client_addr, command, "-ERR File is being used");
         return;
     }
-    
-    close(fd);
 
     // Check if destination folder exists
     struct stat st;
     if (stat(dest_folder_phys, &st) != 0 || !S_ISDIR(st.st_mode)) {
+        flock(fd, LOCK_UN);
+        close(fd);
         tcp_send(state->sockfd, "503");
         write_log_detailed(state->client_addr, command, "-ERR Invalid destination path");
         return;
@@ -545,5 +523,9 @@ void handle_move_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "500"); // Source not found
         write_log_detailed(state->client_addr, command, "-ERR Source file not found");
     }
+
+    /* Release lock after operation completes */
+    flock(fd, LOCK_UN);
+    close(fd);
 }
 
