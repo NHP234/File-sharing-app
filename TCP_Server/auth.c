@@ -20,12 +20,14 @@ void handle_register(conn_state_t *state, char *command) {
     /* Check if already logged in */
     if (state->is_logged_in) {
         tcp_send(state->sockfd, "403");
+        write_log_detailed(state->client_addr, command, "-ERR Already logged in");
         return;
     }
     
     /* Parse command */
     if (sscanf(command, "REGISTER %s %s", username, password) != 2) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
@@ -33,6 +35,7 @@ void handle_register(conn_state_t *state, char *command) {
     if (strlen(username) == 0 || strlen(username) >= MAX_USERNAME ||
         strlen(password) == 0 || strlen(password) >= MAX_PASSWORD) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Invalid username or password length");
         return;
     }
     
@@ -43,6 +46,7 @@ void handle_register(conn_state_t *state, char *command) {
         if (strcmp(accounts[i].username, username) == 0) {
             pthread_mutex_unlock(&account_mutex);
             tcp_send(state->sockfd, "501");
+            write_log_detailed(state->client_addr, command, "-ERR Username already exists");
             return;
         }
     }
@@ -51,6 +55,7 @@ void handle_register(conn_state_t *state, char *command) {
     if (account_count >= MAX_ACCOUNTS) {
         pthread_mutex_unlock(&account_mutex);
         tcp_send(state->sockfd, "504");
+        write_log_detailed(state->client_addr, command, "-ERR Server full");
         return;
     }
     
@@ -66,12 +71,10 @@ void handle_register(conn_state_t *state, char *command) {
     
     pthread_mutex_unlock(&account_mutex);
     
-    /* Log the registration */
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "New user registered: %s", username);
-    write_log(log_msg);
-    
     tcp_send(state->sockfd, "120");
+    
+    /* Log the registration */
+    write_log_detailed(state->client_addr, command, "+OK New user registered");
     printf("New user registered: %s\n", username);
 }
 
@@ -93,12 +96,14 @@ void handle_login(conn_state_t *state, char *command) {
     /* Check if already logged in in this session */
     if (state->is_logged_in) {
         tcp_send(state->sockfd, "403");
+        write_log_detailed(state->client_addr, command, "-ERR Already logged in");
         return;
     }
     
     /* Parse command */
     if (sscanf(command, "LOGIN %s %s", username, password) != 2) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
@@ -117,6 +122,7 @@ void handle_login(conn_state_t *state, char *command) {
     if (found == -1) {
         pthread_mutex_unlock(&account_mutex);
         tcp_send(state->sockfd, "402");
+        write_log_detailed(state->client_addr, command, "-ERR Account does not exist");
         return;
     }
     
@@ -124,6 +130,7 @@ void handle_login(conn_state_t *state, char *command) {
     if (strcmp(accounts[found].password, password) != 0) {
         pthread_mutex_unlock(&account_mutex);
         tcp_send(state->sockfd, "401");
+        write_log_detailed(state->client_addr, command, "-ERR Wrong password");
         return;
     }
     
@@ -131,6 +138,7 @@ void handle_login(conn_state_t *state, char *command) {
     if (accounts[found].is_logged_in) {
         pthread_mutex_unlock(&account_mutex);
         tcp_send(state->sockfd, "403");
+        write_log_detailed(state->client_addr, command, "-ERR Already logged in on another client");
         return;
     }
     
@@ -142,12 +150,10 @@ void handle_login(conn_state_t *state, char *command) {
     
     pthread_mutex_unlock(&account_mutex);
     
-    /* Log the login */
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "User logged in: %s", username);
-    write_log(log_msg);
-    
     tcp_send(state->sockfd, "110");
+    
+    /* Log the login */
+    write_log_detailed(state->client_addr, command, "+OK User logged in");
     printf("User logged in: %s\n", username);
 }
 
@@ -161,15 +167,10 @@ void handle_login(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_logout(conn_state_t *state, char *command) {
-    /* Parse command */
-    if (sscanf(command, "LOGOUT") != 0) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
-
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LOGOUT", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -185,18 +186,16 @@ void handle_logout(conn_state_t *state, char *command) {
     
     pthread_mutex_unlock(&account_mutex);
     
-    /* Log the logout */
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "User logged out: %s", state->logged_user);
-    write_log(log_msg);
-    
     printf("User logged out: %s\n", state->logged_user);
+    
+    tcp_send(state->sockfd, "130");
+    
+    /* Log the logout */
+    write_log_detailed(state->client_addr, command, "+OK User logged out");
     
     /* Clear state */
     state->is_logged_in = 0;
     state->user_group_id = -1;
     state->logged_user[0] = '\0';
-    
-    tcp_send(state->sockfd, "130");
 }
 

@@ -94,12 +94,14 @@ void handle_upload(conn_state_t *state, char *command) {
     /* Parse command: UPLOAD <filename> <filesize> */
     if (sscanf(command, "UPLOAD %s %lld", filename, &filesize) != 2) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
     /* Validate filesize */
     if (filesize <= 0) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Invalid file size");
         return;
     }
     
@@ -169,6 +171,7 @@ void handle_download(conn_state_t *state, char *command) {
     /* Parse command: DOWNLOAD <filename> */
     if (sscanf(command, "DOWNLOAD %s", filename) != 1) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
@@ -184,16 +187,19 @@ void handle_download(conn_state_t *state, char *command) {
     
     if (filesize == -1) {
         tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR File does not exist");
         return;
     }
     
     if (filesize == -2) {
         tcp_send(state->sockfd, "504");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot download folder");
         return;
     }
     
     if (filesize == -3) {
         tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR Not a regular file");
         return;
     }
     
@@ -209,11 +215,6 @@ void handle_download(conn_state_t *state, char *command) {
     
     if (ret == 0) {
         tcp_send(state->sockfd, "150");
-        
-        char log_msg[512];
-        snprintf(log_msg, sizeof(log_msg), "User %s downloaded: %s (%lld bytes)", 
-                 state->logged_user, filename, filesize);
-        write_log(log_msg);
         write_log_detailed(state->client_addr, command, "+OK Successful download");
         
         printf("Download complete: %s by %s\n", filename, state->logged_user);
@@ -277,12 +278,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
     }
 
     if (rename(old_phys_path, new_phys_path) == 0) {
-        tcp_send(state->sockfd, "210"); // Success
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s renamed file: %s -> %s",
-                 state->logged_user, old_name, new_name);
-        write_log(log_msg);
+        tcp_send(state->sockfd, "210");
         write_log_detailed(state->client_addr, command, "+OK File renamed successfully");
     } else {
         tcp_send(state->sockfd, "500"); // file not found
@@ -325,11 +321,6 @@ void handle_delete_file(conn_state_t *state, char *command) {
 
     if (unlink(phys_path) == 0) {
         tcp_send(state->sockfd, "211");
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s deleted file: %s",
-                 state->logged_user, path);
-        write_log(log_msg);
         write_log_detailed(state->client_addr, command, "+OK File deleted successfully");
     } else {
         tcp_send(state->sockfd, "500"); /* File not found */
@@ -422,12 +413,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
     fclose(out);
 
     if (success) {
-        tcp_send(state->sockfd, "212"); /* Success */
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s copied file: %s -> %s",
-                 state->logged_user, src_path, dest_path);
-        write_log(log_msg);
+        tcp_send(state->sockfd, "212");
         write_log_detailed(state->client_addr, command, "+OK File copied successfully");
     } else {
         tcp_send(state->sockfd, "500"); /* Copy failed */
@@ -490,12 +476,7 @@ void handle_move_file(conn_state_t *state, char *command) {
 
     // Move file
     if (rename(src_phys, final_dest_phys) == 0) {
-        tcp_send(state->sockfd, "213"); // Success
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s moved file: %s -> %s",
-                 state->logged_user, src_path, dest_dir);
-        write_log(log_msg);
+        tcp_send(state->sockfd, "213");
         write_log_detailed(state->client_addr, command, "+OK File moved successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Source not found
