@@ -18,10 +18,10 @@
 | Xem DS nhóm | LIST\_GROUPS | 203: Trả về danh sách thành công 400: Chưa đăng nhập 300: Sai cú pháp |
 | Xem thành viên | LIST\_MEMBERS | 204: Trả về danh sách thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 300: Sai cú pháp |
 | Xem yêu cầu xin vào | LIST\_REQUESTS | 205: Trả về danh sách yêu cầu 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 406: Không phải trưởng nhóm 300: Sai cú pháp |
-| Sửa tên file | RENAME\_FILE \<old\> \<new\> | 210: Đổi tên thành công 500: File không tồn tại 501: Tên mới bị trùng 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 406: Không phải trưởng nhóm 300: Sai cú pháp |
-| Xóa file | DELETE\_FILE \<path\> | 211: Xóa thành công 500: File không tồn tại 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 406: Không phải trưởng nhóm 300: Sai cú pháp |
+| Sửa tên file | RENAME\_FILE \<old\> \<new\> | 210: Đổi tên thành công 500: File không tồn tại 501: Tên mới bị trùng 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 406: Không phải trưởng nhóm 300: Sai cú pháp 505: File dang duoc upload/download |
+| Xóa file | DELETE\_FILE \<path\> | 211: Xóa thành công 500: File không tồn tại 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 406: Không phải trưởng nhóm 300: Sai cú pháp 505: File dang duoc upload/download|
 | Copy file | COPY\_FILE \<src\> \<dest\> | 212: Copy thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 500: File nguồn không tồn tại 503: Đường dẫn đích không hợp lệ 300: Sai cú pháp |
-| Di chuyển file | MOVE\_FILE \<src\> \<dest\> | 213: Di chuyển thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 500: File nguồn không tồn tại 503: Đường dẫn đích không hợp lệ 300: Sai cú pháp |
+| Di chuyển file | MOVE\_FILE \<src\> \<dest\> | 213: Di chuyển thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 500: File nguồn không tồn tại 503: Đường dẫn đích không hợp lệ 300: Sai cú pháp 505: File dang duoc upload/download|
 | Tạo folder | MKDIR \<path\> | 220: Tạo folder thành công 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 501: Folder đã tồn tại 300: Sai cú pháp |
 | Sửa tên folder | RENAME\_FOLDER \<old\> \<new\> | 221: Đổi tên thành công 500: Folder không tồn tại 501: Tên mới bị trùng 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 406: Không phải trưởng nhóm 300: Sai cú pháp |
 | Xóa folder | RMDIR \<path\> | 222: Xóa thành công 500: Folder không tồn tại 400: Chưa đăng nhập 404: Chưa tham gia nhóm nào 406: Không phải trưởng nhóm 300: Sai cú pháp |

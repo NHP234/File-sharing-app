@@ -1,6 +1,7 @@
 #include "common.h"
 #include <fcntl.h>
 #include <libgen.h>
+#include <sys/stat.h>
 
 #define STORAGE_ROOT "groups"
 
@@ -228,6 +229,31 @@ void handle_rename_file(conn_state_t *state, char *command) {
 
     snprintf(new_phys_path, sizeof(new_phys_path), "%s/%s", parent_dir, new_name);
 
+    /* Check if file is locked (being uploaded/downloaded) */
+    int fd = open(old_phys_path, O_RDONLY);
+    if (fd == -1) {
+        tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR File not found");
+        return;
+    }
+    
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    
+    /* Try to get write lock (non-blocking) */
+    if (fcntl(fd, F_SETLK, &lock) == -1) {
+        close(fd);
+        tcp_send(state->sockfd, "505");
+        write_log_detailed(state->client_addr, command, "-ERR File is being used");
+        return;
+    }
+    
+    close(fd);
+
     // Check if new name already exists
     struct stat st;
     if (stat(new_phys_path, &st) == 0) {
@@ -277,6 +303,31 @@ void handle_delete_file(conn_state_t *state, char *command) {
 
     char phys_path[MAX_PATH];
     resolve_path(phys_path, state->user_group_id, path);
+
+    /* Check if file is locked (being uploaded/downloaded) */
+    int fd = open(phys_path, O_RDONLY);
+    if (fd == -1) {
+        tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR File not found");
+        return;
+    }
+    
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    
+    /* Try to get write lock (non-blocking) */
+    if (fcntl(fd, F_SETLK, &lock) == -1) {
+        close(fd);
+        tcp_send(state->sockfd, "505");
+        write_log_detailed(state->client_addr, command, "-ERR File is being used");
+        return;
+    }
+    
+    close(fd);
 
     if (unlink(phys_path) == 0) {
         tcp_send(state->sockfd, "211");
@@ -416,6 +467,31 @@ void handle_move_file(conn_state_t *state, char *command) {
 
     resolve_path(src_phys, state->user_group_id, src_path);
     resolve_path(dest_folder_phys, state->user_group_id, dest_dir);
+
+    /* Check if file is locked (being uploaded/downloaded) */
+    int fd = open(src_phys, O_RDONLY);
+    if (fd == -1) {
+        tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR File not found");
+        return;
+    }
+    
+    struct flock lock;
+    memset(&lock, 0, sizeof(lock));
+    lock.l_type = F_WRLCK;
+    lock.l_whence = SEEK_SET;
+    lock.l_start = 0;
+    lock.l_len = 0;
+    
+    /* Try to get write lock (non-blocking) */
+    if (fcntl(fd, F_SETLK, &lock) == -1) {
+        close(fd);
+        tcp_send(state->sockfd, "505");
+        write_log_detailed(state->client_addr, command, "-ERR File is being used");
+        return;
+    }
+    
+    close(fd);
 
     // Check if destination folder exists
     struct stat st;
