@@ -85,12 +85,7 @@ void handle_mkdir(conn_state_t *state, char *command) {
 
     // Create directory
     if (mkdir(phys_path, 0777) == 0) {
-        tcp_send(state->sockfd, "220"); // Success
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s created folder: %s (group_id: %d)",
-                 state->logged_user, path, state->user_group_id);
-        write_log(log_msg);
+        tcp_send(state->sockfd, "220");
         write_log_detailed(state->client_addr, command, "+OK Folder created successfully");
     } else {
         tcp_send(state->sockfd, "500"); // System error
@@ -154,12 +149,7 @@ void handle_rename_folder(conn_state_t *state, char *command) {
 
     // Rename folder
     if (rename(old_phys_path, new_phys_path) == 0) {
-        tcp_send(state->sockfd, "221"); // Success
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s renamed folder: %s -> %s",
-                 state->logged_user, old_name, new_name);
-        write_log(log_msg);
+        tcp_send(state->sockfd, "221");
         write_log_detailed(state->client_addr, command, "+OK Folder renamed successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Old folder not found
@@ -205,12 +195,7 @@ void handle_rmdir(conn_state_t *state, char *command) {
     snprintf(cmd, sizeof(cmd), "rm -rf \"%s\"", phys_path);
 
     if (system(cmd) == 0) {
-        tcp_send(state->sockfd, "222"); // Success
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s removed folder: %s",
-                 state->logged_user, path);
-        write_log(log_msg);
+        tcp_send(state->sockfd, "222");
         write_log_detailed(state->client_addr, command, "+OK Folder removed successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Folder not found
@@ -280,12 +265,7 @@ void handle_copy_folder(conn_state_t *state, char *command) {
     snprintf(cmd, sizeof(cmd), "cp -r \"%s\" \"%s\"", src_phys, dest_phys);
 
     if (system(cmd) == 0) {
-        tcp_send(state->sockfd, "223"); // Success
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s copied folder: %s -> %s",
-                 state->logged_user, src_path, dest_path);
-        write_log(log_msg);
+        tcp_send(state->sockfd, "223");
         write_log_detailed(state->client_addr, command, "+OK Folder copied successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Copy failed
@@ -353,12 +333,7 @@ void handle_move_folder(conn_state_t *state, char *command) {
 
     // Move folder
     if (rename(src_phys, final_dest_phys) == 0) {
-        tcp_send(state->sockfd, "224"); // Success
-
-        char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s moved folder: %s -> %s",
-                 state->logged_user, src_path, dest_dir);
-        write_log(log_msg);
+        tcp_send(state->sockfd, "224");
         write_log_detailed(state->client_addr, command, "+OK Folder moved successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Source not found
@@ -446,11 +421,6 @@ void handle_list_content(conn_state_t *state, char *command) {
     }
 
     tcp_send(state->sockfd, response);
-
-    char log_msg[BUFF_SIZE];
-    snprintf(log_msg, sizeof(log_msg), "User %s listed content of: %s",
-             state->logged_user, path);
-    write_log(log_msg);
     write_log_detailed(state->client_addr, command, "+OK Content listed successfully");
 }
 

@@ -16,27 +16,31 @@
 void handle_create_group(conn_state_t *state, char *command) {
     char group_name[MAX_GROUPNAME];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("CREATE", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
     /* Parse command */
     if (sscanf(command, "CREATE %s", group_name) != 1) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
     /* Validate group name */
     if (strlen(group_name) == 0 || strlen(group_name) >= MAX_GROUPNAME) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Invalid group name");
         return;
     }
     
     /* Check if user already in a group */
     if (state->user_group_id != -1) {
         tcp_send(state->sockfd, "407");
+        write_log_detailed(state->client_addr, command, "-ERR User already in another group");
         return;
     }
     
@@ -47,6 +51,7 @@ void handle_create_group(conn_state_t *state, char *command) {
         if (strcmp(groups[i].group_name, group_name) == 0) {
             pthread_mutex_unlock(&group_mutex);
             tcp_send(state->sockfd, "501");
+            write_log_detailed(state->client_addr, command, "-ERR Group name already exists");
             return;
         }
     }
@@ -55,6 +60,7 @@ void handle_create_group(conn_state_t *state, char *command) {
     if (group_count >= MAX_GROUPS) {
         pthread_mutex_unlock(&group_mutex);
         tcp_send(state->sockfd, "504");
+        write_log_detailed(state->client_addr, command, "-ERR Server full");
         return;
     }
     
@@ -89,12 +95,10 @@ void handle_create_group(conn_state_t *state, char *command) {
     snprintf(folder_path, sizeof(folder_path), "groups/%s", group_name);
     mkdir(folder_path, 0755);
     
-    /* Log the group creation */
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "Group created: %s by %s", group_name, state->logged_user);
-    write_log(log_msg);
-    
     tcp_send(state->sockfd, "202");
+    
+    /* Log the group creation */
+    write_log_detailed(state->client_addr, command, "+OK Group created successfully");
     printf("Group created: %s by %s (ID: %d)\n", group_name, state->logged_user, new_group_id);
 }
 
@@ -113,21 +117,24 @@ void handle_create_group(conn_state_t *state, char *command) {
 void handle_join_group(conn_state_t *state, char *command) {
     char group_name[MAX_GROUPNAME];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("JOIN", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
     /* Parse command */
     if (sscanf(command, "JOIN %s", group_name) != 1) {
         tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
     /* Check if user already in a group */
     if (state->user_group_id != -1) {
         tcp_send(state->sockfd, "407");
+        write_log_detailed(state->client_addr, command, "-ERR User already in a group");
         return;
     }
     
@@ -146,6 +153,7 @@ void handle_join_group(conn_state_t *state, char *command) {
     if (target_group_id == -1) {
         pthread_mutex_unlock(&group_mutex);
         tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR Group does not exist");
         return;
     }
     
@@ -167,6 +175,7 @@ void handle_join_group(conn_state_t *state, char *command) {
     if (request_count >= MAX_REQUESTS) {
         pthread_mutex_unlock(&request_mutex);
         tcp_send(state->sockfd, "504");
+        write_log_detailed(state->client_addr, command, "-ERR Request list full");
         return;
     }
     
@@ -180,12 +189,10 @@ void handle_join_group(conn_state_t *state, char *command) {
     
     pthread_mutex_unlock(&request_mutex);
     
-    /* Log the join request */
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "Join request: %s -> %s", state->logged_user, group_name);
-    write_log(log_msg);
-    
     tcp_send(state->sockfd, "160");
+    
+    /* Log the join request */
+    write_log_detailed(state->client_addr, command, "+OK Join request sent");
     printf("Join request: %s -> %s\n", state->logged_user, group_name);
 }
 
@@ -203,31 +210,17 @@ void handle_join_group(conn_state_t *state, char *command) {
 void handle_approve(conn_state_t *state, char *command) {
     char username[MAX_USERNAME];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("APPROVE", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
     /* Parse command */
     if (sscanf(command, "APPROVE %s", username) != 1) {
         tcp_send(state->sockfd, "300");
-        return;
-    }
-    
-    /* Check if user is in a group */
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
-    }
-    
-    /* Check if user is group leader */
-    pthread_mutex_lock(&group_mutex);
-    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
-    pthread_mutex_unlock(&group_mutex);
-    
-    if (!is_leader) {
-        tcp_send(state->sockfd, "406");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
@@ -247,6 +240,7 @@ void handle_approve(conn_state_t *state, char *command) {
     if (request_index == -1) {
         pthread_mutex_unlock(&request_mutex);
         tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR No request from this user");
         return;
     }
     
@@ -272,12 +266,10 @@ void handle_approve(conn_state_t *state, char *command) {
     
     pthread_mutex_unlock(&account_mutex);
     
-    /* Log the approval */
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "Approved: %s joined group %d", username, state->user_group_id);
-    write_log(log_msg);
-    
     tcp_send(state->sockfd, "170");
+    
+    /* Log the approval */
+    write_log_detailed(state->client_addr, command, "+OK Member approved successfully");
     printf("User %s approved %s to join group %d\n", state->logged_user, username, state->user_group_id);
 }
 
@@ -363,11 +355,6 @@ void handle_invite(conn_state_t *state, char *command) {
     pthread_mutex_unlock(&invite_mutex);
 
     tcp_send(state->sockfd, "180");
-
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "User %s invited %s to group %d",
-             state->logged_user, username, state->user_group_id);
-    write_log(log_msg);
     write_log_detailed(state->client_addr, command, "+OK Invite sent successfully");
 }
 
@@ -455,11 +442,6 @@ void handle_accept(conn_state_t *state, char *command) {
     pthread_mutex_unlock(&account_mutex);
 
     tcp_send(state->sockfd, "190");
-
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "User %s accepted invite to group: %s (ID: %d)",
-             state->logged_user, group_name, group_id);
-    write_log(log_msg);
     write_log_detailed(state->client_addr, command, "+OK Joined group successfully");
 }
 
@@ -474,15 +456,10 @@ void handle_accept(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_leave(conn_state_t *state, char *command) {
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
-        return;
-    }
-    
-    /* Check if user is in a group */
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LEAVE", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -496,6 +473,7 @@ void handle_leave(conn_state_t *state, char *command) {
         if (member_count > 1) {
             pthread_mutex_unlock(&group_mutex);
             tcp_send(state->sockfd, "408");
+            write_log_detailed(state->client_addr, command, "-ERR Leader must remove all members first");
             return;
         }
         
@@ -525,11 +503,6 @@ void handle_leave(conn_state_t *state, char *command) {
         char folder_path[MAX_PATH];
         snprintf(folder_path, sizeof(folder_path), "groups/%s", group_name);
         /* Note: Not deleting folder to preserve files */
-        
-        /* Log group deletion */
-        char log_msg[256];
-        snprintf(log_msg, sizeof(log_msg), "Group deleted: %s (leader %s left)", group_name, state->logged_user);
-        write_log(log_msg);
     } else {
         pthread_mutex_unlock(&group_mutex);
     }
@@ -550,12 +523,10 @@ void handle_leave(conn_state_t *state, char *command) {
     
     pthread_mutex_unlock(&account_mutex);
     
-    /* Log the leave action */
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "User %s left group %d", state->logged_user, old_group_id);
-    write_log(log_msg);
-    
     tcp_send(state->sockfd, "200");
+    
+    /* Log the leave action */
+    write_log_detailed(state->client_addr, command, "+OK Left group successfully");
     printf("User %s left group %d\n", state->logged_user, old_group_id);
 }
 
@@ -609,11 +580,6 @@ void handle_kick(conn_state_t *state, char *command) {
     }
 
     tcp_send(state->sockfd, "201");
-
-    char log_msg[256];
-    snprintf(log_msg, sizeof(log_msg), "User %s kicked %s from group %d",
-             state->logged_user, username, state->user_group_id);
-    write_log(log_msg);
     write_log_detailed(state->client_addr, command, "+OK Member removed successfully");
 }
 
@@ -630,9 +596,10 @@ void handle_list_groups(conn_state_t *state, char *command) {
     char response[BUFF_SIZE];
     char temp[256];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LIST_GROUPS", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -676,15 +643,10 @@ void handle_list_groups(conn_state_t *state, char *command) {
 void handle_list_members(conn_state_t *state, char *command) {
     char response[BUFF_SIZE];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
-        return;
-    }
-    
-    /* Check if user is in a group */
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LIST_MEMBERS", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -724,25 +686,10 @@ void handle_list_members(conn_state_t *state, char *command) {
 void handle_list_requests(conn_state_t *state, char *command) {
     char response[BUFF_SIZE];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
-        return;
-    }
-    
-    /* Check if user is in a group */
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
-    }
-    
-    /* Check if user is group leader */
-    pthread_mutex_lock(&group_mutex);
-    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
-    pthread_mutex_unlock(&group_mutex);
-    
-    if (!is_leader) {
-        tcp_send(state->sockfd, "406");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LIST_REQUESTS", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
