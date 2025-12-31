@@ -130,6 +130,19 @@ void handle_rename_folder(conn_state_t *state, char *command) {
 
     resolve_path(old_phys_path, state->user_group_id, old_name);
 
+    // Check if path is a directory (not a file)
+    struct stat st_check;
+    if (stat(old_phys_path, &st_check) != 0) {
+        tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR Folder not found");
+        return;
+    }
+    if (!S_ISDIR(st_check.st_mode)) {
+        tcp_send(state->sockfd, "506");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot rename file as folder");
+        return;
+    }
+
     // Extract parent directory
     strcpy(parent_dir, old_phys_path);
     char *last_slash = strrchr(parent_dir, '/');
@@ -189,6 +202,19 @@ void handle_rmdir(conn_state_t *state, char *command) {
 
     char phys_path[MAX_PATH];
     resolve_path(phys_path, state->user_group_id, path);
+
+    // Check if path is a directory (not a file)
+    struct stat st_check;
+    if (stat(phys_path, &st_check) != 0) {
+        tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR Folder not found");
+        return;
+    }
+    if (!S_ISDIR(st_check.st_mode)) {
+        tcp_send(state->sockfd, "506");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot delete file as folder");
+        return;
+    }
 
     // Remove directory (recursive)
     char cmd[MAX_PATH + 20];
@@ -309,6 +335,19 @@ void handle_move_folder(conn_state_t *state, char *command) {
 
     resolve_path(src_phys, state->user_group_id, src_path);
     resolve_path(dest_folder_phys, state->user_group_id, dest_dir);
+
+    // Check if source is a directory (not a file)
+    struct stat st_check;
+    if (stat(src_phys, &st_check) != 0) {
+        tcp_send(state->sockfd, "500");
+        write_log_detailed(state->client_addr, command, "-ERR Folder not found");
+        return;
+    }
+    if (!S_ISDIR(st_check.st_mode)) {
+        tcp_send(state->sockfd, "506");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot move file as folder");
+        return;
+    }
 
     // Check if destination folder exists
     struct stat st;

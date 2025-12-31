@@ -144,9 +144,11 @@ void print_response(char *response) {
     } else if (strcmp(code, "503") == 0) {
         printf(">> Error: Invalid destination path\n");
     } else if (strcmp(code, "504") == 0) {
-        printf(">> Error: Internal server error\n");
+        printf(">> Error: Cannot perform file operation on folder\n");
     } else if (strcmp(code, "505") == 0) {
         printf(">> Error: File is being used (uploading/downloading)\n");
+    } else if (strcmp(code, "506") == 0) {
+        printf(">> Error: Cannot perform folder operation on file\n");
     } else {
         printf(">> Response: %s\n", response);
     }

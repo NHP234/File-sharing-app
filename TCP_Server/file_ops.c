@@ -232,14 +232,22 @@ void handle_rename_file(conn_state_t *state, char *command) {
 
     snprintf(new_phys_path, sizeof(new_phys_path), "%s/%s", parent_dir, new_name);
 
-    // Check if file is locked (being uploaded/downloaded)
-    int fd = open(old_phys_path, O_RDWR);
-    if (fd == -1) {
+    // Check if path is a file (not a directory)
+    struct stat st_check;
+    if (stat(old_phys_path, &st_check) != 0) {
         tcp_send(state->sockfd, "500");
         write_log_detailed(state->client_addr, command, "-ERR File not found");
         return;
     }
-    
+    if (S_ISDIR(st_check.st_mode)) {
+        tcp_send(state->sockfd, "504");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot rename folder as file");
+        return;
+    }
+
+    // Check if file is locked (being uploaded/downloaded)
+    int fd = open(old_phys_path, O_RDWR);
+
     // Try to get exclusive lock (non-blocking)
     if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
@@ -304,14 +312,22 @@ void handle_delete_file(conn_state_t *state, char *command) {
     char phys_path[MAX_PATH];
     resolve_path(phys_path, state->user_group_id, path);
 
-    // Check if file is locked (being uploaded/downloaded)
-    int fd = open(phys_path, O_RDWR);
-    if (fd == -1) {
+    // Check if path is a file (not a directory)
+    struct stat st_check;
+    if (stat(phys_path, &st_check) != 0) {
         tcp_send(state->sockfd, "500");
         write_log_detailed(state->client_addr, command, "-ERR File not found");
         return;
     }
-    
+    if (S_ISDIR(st_check.st_mode)) {
+        tcp_send(state->sockfd, "504");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot delete folder as file");
+        return;
+    }
+
+    // Check if file is locked (being uploaded/downloaded)
+    int fd = open(phys_path, O_RDWR);
+
     // Try to get exclusive lock (non-blocking)
     if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
@@ -369,12 +385,20 @@ void handle_copy_file(conn_state_t *state, char *command) {
     resolve_path(src_phys, state->user_group_id, src_path);
     resolve_path(dest_phys, state->user_group_id, dest_path);
 
-    FILE *in = fopen(src_phys, "rb");
-    if (!in) {
+    // Check if source exists and is a file (not a directory)
+    struct stat st_check;
+    if (stat(src_phys, &st_check) != 0) {
         tcp_send(state->sockfd, "500"); // Source not found
         write_log_detailed(state->client_addr, command, "-ERR Source file not found");
         return;
     }
+    if (S_ISDIR(st_check.st_mode)) {
+        tcp_send(state->sockfd, "504");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot copy folder as file");
+        return;
+    }
+
+    FILE *in = fopen(src_phys, "rb");
 
     // Lock source file
     if (file_lock(fileno(in), LOCK_SH) == -1) {
@@ -463,14 +487,22 @@ void handle_move_file(conn_state_t *state, char *command) {
     resolve_path(src_phys, state->user_group_id, src_path);
     resolve_path(dest_folder_phys, state->user_group_id, dest_dir);
 
-    // Check if file is locked (being uploaded/downloaded)
-    int fd = open(src_phys, O_RDWR);
-    if (fd == -1) {
+    // Check if source is a file (not a directory)
+    struct stat st_check;
+    if (stat(src_phys, &st_check) != 0) {
         tcp_send(state->sockfd, "500");
         write_log_detailed(state->client_addr, command, "-ERR File not found");
         return;
     }
-    
+    if (S_ISDIR(st_check.st_mode)) {
+        tcp_send(state->sockfd, "504");
+        write_log_detailed(state->client_addr, command, "-ERR Cannot move folder as file");
+        return;
+    }
+
+    // Check if file is locked (being uploaded/downloaded)
+    int fd = open(src_phys, O_RDWR);
+
     // Try to get exclusive lock (non-blocking)
     if (flock(fd, LOCK_EX | LOCK_NB) == -1) {
         close(fd);
