@@ -107,9 +107,11 @@ int get_next_group_id();
 char* get_group_folder_path(int group_id, char *buffer, int buf_size);
 int is_group_leader(const char *username, int group_id);
 int count_group_members(int group_id);
+void sync_user_group_id(conn_state_t *state);
 char* role_based_access_control(const char *command, conn_state_t *state);
 
 /* network.c - Network I/O functions */
+int file_lock(int fd, int type);
 int tcp_send(int sockfd, char *msg);
 int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len);
 int send_all(int sockfd, const void *buffer, int length);
