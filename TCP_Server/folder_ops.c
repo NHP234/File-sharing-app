@@ -57,15 +57,19 @@ static void resolve_path(char *full_path, int group_id, const char *user_path) {
  **/
 void handle_mkdir(conn_state_t *state, char *command) {
     char path[MAX_PATH];
-    sscanf(command, "MKDIR %s", path);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("MKDIR", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Parse command */
+    if (sscanf(command, "MKDIR %s", path) != 1) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -75,6 +79,7 @@ void handle_mkdir(conn_state_t *state, char *command) {
     struct stat st;
     if (stat(phys_path, &st) == 0) {
         tcp_send(state->sockfd, "501"); // Already exists
+        write_log_detailed(state->client_addr, command, "-ERR Folder already exists");
         return;
     }
 
@@ -86,8 +91,10 @@ void handle_mkdir(conn_state_t *state, char *command) {
         snprintf(log_msg, sizeof(log_msg), "User %s created folder: %s (group_id: %d)",
                  state->logged_user, path, state->user_group_id);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK Folder created successfully");
     } else {
         tcp_send(state->sockfd, "500"); // System error
+        write_log_detailed(state->client_addr, command, "-ERR System error creating folder");
     }
 }
 
@@ -106,20 +113,19 @@ void handle_mkdir(conn_state_t *state, char *command) {
  **/
 void handle_rename_folder(conn_state_t *state, char *command) {
     char old_name[MAX_PATH], new_name[MAX_PATH];
-    sscanf(command, "RENAME_FOLDER %s %s", old_name, new_name);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("RENAME_FOLDER", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
-    }
-
-    if (!is_group_leader(state->logged_user, state->user_group_id)) {
-        tcp_send(state->sockfd, "406");
+    /* Parse command */
+    if (sscanf(command, "RENAME_FOLDER %s %s", old_name, new_name) != 2) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -142,6 +148,7 @@ void handle_rename_folder(conn_state_t *state, char *command) {
     struct stat st;
     if (stat(new_phys_path, &st) == 0) {
         tcp_send(state->sockfd, "501"); // Name already exists
+        write_log_detailed(state->client_addr, command, "-ERR New folder name already exists");
         return;
     }
 
@@ -153,8 +160,10 @@ void handle_rename_folder(conn_state_t *state, char *command) {
         snprintf(log_msg, sizeof(log_msg), "User %s renamed folder: %s -> %s",
                  state->logged_user, old_name, new_name);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK Folder renamed successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Old folder not found
+        write_log_detailed(state->client_addr, command, "-ERR Folder not found");
     }
 }
 
@@ -172,20 +181,19 @@ void handle_rename_folder(conn_state_t *state, char *command) {
  **/
 void handle_rmdir(conn_state_t *state, char *command) {
     char path[MAX_PATH];
-    sscanf(command, "RMDIR %s", path);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("RMDIR", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
-    }
-
-    if (!is_group_leader(state->logged_user, state->user_group_id)) {
-        tcp_send(state->sockfd, "406");
+    /* Parse command */
+    if (sscanf(command, "RMDIR %s", path) != 1) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -200,11 +208,13 @@ void handle_rmdir(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "222"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "User %s deleted folder: %s",
+        snprintf(log_msg, sizeof(log_msg), "User %s removed folder: %s",
                  state->logged_user, path);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK Folder removed successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Folder not found
+        write_log_detailed(state->client_addr, command, "-ERR Folder not found or system error");
     }
 }
 
@@ -222,15 +232,19 @@ void handle_rmdir(conn_state_t *state, char *command) {
  **/
 void handle_copy_folder(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_path[MAX_PATH];
-    sscanf(command, "COPY_FOLDER %s %s", src_path, dest_path);
 
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("COPY_FOLDER", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Parse command */
+    if (sscanf(command, "COPY_FOLDER %s %s", src_path, dest_path) != 2) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -244,6 +258,7 @@ void handle_copy_folder(conn_state_t *state, char *command) {
     struct stat st;
     if (stat(src_phys, &st) != 0 || !S_ISDIR(st.st_mode)) {
         tcp_send(state->sockfd, "500"); // Source not found
+        write_log_detailed(state->client_addr, command, "-ERR Source folder not found");
         return;
     }
 
@@ -255,6 +270,7 @@ void handle_copy_folder(conn_state_t *state, char *command) {
         *last_slash = '\0';
         if (stat(dest_parent, &st) != 0) {
             tcp_send(state->sockfd, "503"); // Invalid destination
+            write_log_detailed(state->client_addr, command, "-ERR Invalid destination path");
             return;
         }
     }
@@ -270,8 +286,10 @@ void handle_copy_folder(conn_state_t *state, char *command) {
         snprintf(log_msg, sizeof(log_msg), "User %s copied folder: %s -> %s",
                  state->logged_user, src_path, dest_path);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK Folder copied successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Copy failed
+        write_log_detailed(state->client_addr, command, "-ERR Copy operation failed");
     }
 }
 
@@ -289,17 +307,19 @@ void handle_copy_folder(conn_state_t *state, char *command) {
  **/
 void handle_move_folder(conn_state_t *state, char *command) {
     char src_path[MAX_PATH], dest_dir[MAX_PATH];
-    sscanf(command, "MOVE_FOLDER %s %s", src_path, dest_dir);
 
-    // Check logged in
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Check access control */
+    char *access_error = role_based_access_control("MOVE_FOLDER", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
         return;
     }
 
-    // Check in group
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Parse command */
+    if (sscanf(command, "MOVE_FOLDER %s %s", src_path, dest_dir) != 2) {
+        tcp_send(state->sockfd, "300");
+        write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
 
@@ -314,6 +334,7 @@ void handle_move_folder(conn_state_t *state, char *command) {
     struct stat st;
     if (stat(dest_folder_phys, &st) != 0 || !S_ISDIR(st.st_mode)) {
         tcp_send(state->sockfd, "503"); // Invalid destination
+        write_log_detailed(state->client_addr, command, "-ERR Invalid destination path");
         return;
     }
 
@@ -338,8 +359,10 @@ void handle_move_folder(conn_state_t *state, char *command) {
         snprintf(log_msg, sizeof(log_msg), "User %s moved folder: %s -> %s",
                  state->logged_user, src_path, dest_dir);
         write_log(log_msg);
+        write_log_detailed(state->client_addr, command, "+OK Folder moved successfully");
     } else {
         tcp_send(state->sockfd, "500"); // Source not found
+        write_log_detailed(state->client_addr, command, "-ERR Source folder not found");
     }
 }
 
@@ -357,22 +380,24 @@ void handle_move_folder(conn_state_t *state, char *command) {
 void handle_list_content(conn_state_t *state, char *command) {
     char path[MAX_PATH];
 
+    /* Check access control */
+    char *access_error = role_based_access_control("LIST_CONTENT", state);
+    if (access_error != NULL) {
+        tcp_send(state->sockfd, access_error);
+        write_log_detailed(state->client_addr, command, "-ERR Access denied");
+        return;
+    }
+
     // Parse command
     char *space = strchr(command, ' ');
     if (space) {
-        sscanf(command, "LIST_CONTENT %s", path);
+        if (sscanf(command, "LIST_CONTENT %s", path) != 1) {
+            tcp_send(state->sockfd, "300");
+            write_log_detailed(state->client_addr, command, "-ERR Syntax error");
+            return;
+        }
     } else {
         strcpy(path, "/");
-    }
-
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
-        return;
-    }
-
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
     }
 
     char phys_path[MAX_PATH];
@@ -382,6 +407,7 @@ void handle_list_content(conn_state_t *state, char *command) {
     DIR *d = opendir(phys_path);
     if (!d) {
         tcp_send(state->sockfd, "500"); // Path not found
+        write_log_detailed(state->client_addr, command, "-ERR Path not found");
         return;
     }
 
@@ -422,8 +448,9 @@ void handle_list_content(conn_state_t *state, char *command) {
     tcp_send(state->sockfd, response);
 
     char log_msg[BUFF_SIZE];
-    snprintf(log_msg, sizeof(log_msg), "User %s listed content: %s",
+    snprintf(log_msg, sizeof(log_msg), "User %s listed content of: %s",
              state->logged_user, path);
     write_log(log_msg);
+    write_log_detailed(state->client_addr, command, "+OK Content listed successfully");
 }
 
