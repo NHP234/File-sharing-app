@@ -16,9 +16,10 @@
 void handle_create_group(conn_state_t *state, char *command) {
     char group_name[MAX_GROUPNAME];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("CREATE", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -113,9 +114,10 @@ void handle_create_group(conn_state_t *state, char *command) {
 void handle_join_group(conn_state_t *state, char *command) {
     char group_name[MAX_GROUPNAME];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("JOIN", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -203,31 +205,16 @@ void handle_join_group(conn_state_t *state, char *command) {
 void handle_approve(conn_state_t *state, char *command) {
     char username[MAX_USERNAME];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("APPROVE", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
     /* Parse command */
     if (sscanf(command, "APPROVE %s", username) != 1) {
         tcp_send(state->sockfd, "300");
-        return;
-    }
-    
-    /* Check if user is in a group */
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
-    }
-    
-    /* Check if user is group leader */
-    pthread_mutex_lock(&group_mutex);
-    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
-    pthread_mutex_unlock(&group_mutex);
-    
-    if (!is_leader) {
-        tcp_send(state->sockfd, "406");
         return;
     }
     
@@ -474,15 +461,10 @@ void handle_accept(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_leave(conn_state_t *state, char *command) {
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
-        return;
-    }
-    
-    /* Check if user is in a group */
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LEAVE", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -630,9 +612,10 @@ void handle_list_groups(conn_state_t *state, char *command) {
     char response[BUFF_SIZE];
     char temp[256];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LIST_GROUPS", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -676,15 +659,10 @@ void handle_list_groups(conn_state_t *state, char *command) {
 void handle_list_members(conn_state_t *state, char *command) {
     char response[BUFF_SIZE];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
-        return;
-    }
-    
-    /* Check if user is in a group */
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LIST_MEMBERS", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
@@ -724,25 +702,10 @@ void handle_list_members(conn_state_t *state, char *command) {
 void handle_list_requests(conn_state_t *state, char *command) {
     char response[BUFF_SIZE];
     
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
-        return;
-    }
-    
-    /* Check if user is in a group */
-    if (state->user_group_id == -1) {
-        tcp_send(state->sockfd, "404");
-        return;
-    }
-    
-    /* Check if user is group leader */
-    pthread_mutex_lock(&group_mutex);
-    int is_leader = is_group_leader(state->logged_user, state->user_group_id);
-    pthread_mutex_unlock(&group_mutex);
-    
-    if (!is_leader) {
-        tcp_send(state->sockfd, "406");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LIST_REQUESTS", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     

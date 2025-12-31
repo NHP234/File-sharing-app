@@ -161,15 +161,10 @@ void handle_login(conn_state_t *state, char *command) {
  *   300: Syntax error
  **/
 void handle_logout(conn_state_t *state, char *command) {
-    /* Parse command */
-    if (sscanf(command, "LOGOUT") != 0) {
-        tcp_send(state->sockfd, "300");
-        return;
-    }
-
-    /* Check if logged in */
-    if (!state->is_logged_in) {
-        tcp_send(state->sockfd, "400");
+    /* Role-based access control */
+    char *rbac_result = role_based_access_control("LOGOUT", state);
+    if (rbac_result != NULL) {
+        tcp_send(state->sockfd, rbac_result);
         return;
     }
     
