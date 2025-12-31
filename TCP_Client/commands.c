@@ -341,8 +341,36 @@ void do_join_group(int sockfd, conn_state_t *state) {
 }
 
 void do_approve(int sockfd, conn_state_t *state) {
-    // TODO: Implement approve
-    printf("Function not implemented yet\n");
+    char username[100];
+    char command[256];
+    char response[BUFF_SIZE];
+    
+    printf("\n=== APPROVE JOIN REQUEST ===\n");
+    printf("Enter username to approve: ");
+    if (fgets(username, sizeof(username), stdin) == NULL) {
+        return;
+    }
+    username[strcspn(username, "\n")] = 0;  /* Remove newline */
+    
+    /* Validate input */
+    if (strlen(username) == 0) {
+        printf(">> Username cannot be empty\n");
+        return;
+    }
+    
+    /* Send APPROVE command */
+    snprintf(command, sizeof(command), "APPROVE %s", username);
+    if (tcp_send(sockfd, command) <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_invite(int sockfd, conn_state_t *state) {
@@ -412,8 +440,34 @@ void do_accept(int sockfd, conn_state_t *state) {
 }
 
 void do_leave(int sockfd, conn_state_t *state) {
-    // TODO: Implement leave
-    printf("Function not implemented yet\n");
+    char response[BUFF_SIZE];
+    char confirm[10];
+    
+    printf("\n=== LEAVE GROUP ===\n");
+    printf("Are you sure you want to leave your current group? (yes/no): ");
+    if (fgets(confirm, sizeof(confirm), stdin) == NULL) {
+        return;
+    }
+    confirm[strcspn(confirm, "\n")] = 0;  /* Remove newline */
+    
+    /* Check confirmation */
+    if (strcmp(confirm, "yes") != 0 && strcmp(confirm, "y") != 0) {
+        printf(">> Leave cancelled\n");
+        return;
+    }
+    
+    /* Send LEAVE command */
+    if (tcp_send(sockfd, "LEAVE") <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_kick(int sockfd, conn_state_t *state) {
@@ -469,13 +523,41 @@ void do_list_groups(int sockfd, conn_state_t *state) {
 }
 
 void do_list_members(int sockfd, conn_state_t *state) {
-    // TODO: Implement list members
-    printf("Function not implemented yet\n");
+    char response[BUFF_SIZE];
+    
+    printf("\n=== LIST GROUP MEMBERS ===\n");
+    
+    /* Send LIST_MEMBERS command */
+    if (tcp_send(sockfd, "LIST_MEMBERS") <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_list_requests(int sockfd, conn_state_t *state) {
-    // TODO: Implement list requests
-    printf("Function not implemented yet\n");
+    char response[BUFF_SIZE];
+    
+    printf("\n=== LIST PENDING JOIN REQUESTS ===\n");
+    
+    /* Send LIST_REQUESTS command */
+    if (tcp_send(sockfd, "LIST_REQUESTS") <= 0) {
+        printf(">> Failed to send command\n");
+        return;
+    }
+    
+    /* Receive response */
+    if (tcp_receive(sockfd, state, response, BUFF_SIZE) > 0) {
+        print_response(response);
+    } else {
+        printf(">> Failed to receive response\n");
+    }
 }
 
 void do_rename_file(int sockfd, conn_state_t *state) {

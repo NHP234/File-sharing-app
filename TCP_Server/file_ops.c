@@ -2,7 +2,7 @@
 #include <fcntl.h>
 #include <libgen.h>
 
-#define STORAGE_ROOT "data/groups"
+#define STORAGE_ROOT "groups"
 
 /**
  * @function resolve_path: Resolve user path to physical path
@@ -281,7 +281,7 @@ void handle_rename_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "210"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s renamed file: %s -> %s",
                  state->logged_user, old_name, new_name);
         write_log(log_msg);
     } else {
@@ -327,7 +327,7 @@ void handle_delete_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "211");
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s deleted file: %s",
                  state->logged_user, path);
         write_log(log_msg);
     } else {
@@ -415,7 +415,7 @@ void handle_copy_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "212"); /* Success */
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s copied file: %s -> %s",
                  state->logged_user, src_path, dest_path);
         write_log(log_msg);
     } else {
@@ -476,7 +476,7 @@ void handle_move_file(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "213"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s moved file: %s -> %s",
                  state->logged_user, src_path, dest_dir);
         write_log(log_msg);
     } else {

@@ -1,6 +1,6 @@
 #include "common.h"
 #include <libgen.h>
-#define STORAGE_ROOT "data/groups"
+#define STORAGE_ROOT "groups"
 
 /**
  * @function resolve_path: Resolve user path to physical path
@@ -83,7 +83,7 @@ void handle_mkdir(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "220"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s created folder: %s (group_id: %d)",
                  state->logged_user, path, state->user_group_id);
         write_log(log_msg);
     } else {
@@ -150,7 +150,7 @@ void handle_rename_folder(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "221"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s renamed folder: %s -> %s",
                  state->logged_user, old_name, new_name);
         write_log(log_msg);
     } else {
@@ -200,7 +200,7 @@ void handle_rmdir(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "222"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s deleted folder: %s",
                  state->logged_user, path);
         write_log(log_msg);
     } else {
@@ -267,7 +267,7 @@ void handle_copy_folder(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "223"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s copied folder: %s -> %s",
                  state->logged_user, src_path, dest_path);
         write_log(log_msg);
     } else {
@@ -335,7 +335,7 @@ void handle_move_folder(conn_state_t *state, char *command) {
         tcp_send(state->sockfd, "224"); // Success
 
         char log_msg[BUFF_SIZE];
-        snprintf(log_msg, sizeof(log_msg), "",
+        snprintf(log_msg, sizeof(log_msg), "User %s moved folder: %s -> %s",
                  state->logged_user, src_path, dest_dir);
         write_log(log_msg);
     } else {
@@ -422,7 +422,7 @@ void handle_list_content(conn_state_t *state, char *command) {
     tcp_send(state->sockfd, response);
 
     char log_msg[BUFF_SIZE];
-    snprintf(log_msg, sizeof(log_msg), "",
+    snprintf(log_msg, sizeof(log_msg), "User %s listed content: %s",
              state->logged_user, path);
     write_log(log_msg);
 }
