@@ -141,10 +141,7 @@ void do_upload(int sockfd, conn_state_t *state) {
         printf(">> Error: '%s' is a directory, not a file.\n", filepath);
         return;
     }
-    if (filesize == -3) {
-        printf(">> Error: '%s' is not a regular file.\n", filepath);
-        return;
-    }
+    
     
     /* Extract filename from path */
     char *filename = strrchr(filepath, '/');
@@ -252,9 +249,13 @@ void do_download(int sockfd, conn_state_t *state) {
         
         printf(">> File found. Size: %lld bytes. Downloading...\n", filesize);
         
+        /* Build download path */
+        char download_path[512];
+        snprintf(download_path, sizeof(download_path), "Downloads/%s", filename);
+        
         /* Receive file content */
-        if (receive_file_content_client(sockfd, state, filename, filesize) == 0) {
-            printf(">> File saved as: %s\n", filename);
+        if (receive_file_content_client(sockfd, state, download_path, filesize) == 0) {
+            printf(">> File saved as: %s\n", download_path);
             
             /* Wait for final 150 response */
             if (tcp_receive(sockfd, state, buffer, BUFF_SIZE) > 0) {

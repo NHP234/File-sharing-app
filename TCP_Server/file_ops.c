@@ -56,53 +56,47 @@ static void resolve_path(char *full_path, int group_id, const char *user_path) {
  *   400: Not logged in
  *   404: Not in any group
  *   502: File write error
- *   503: Filename conflicts with folder
+ 
  *   300: Syntax error
  **/
 void handle_upload(conn_state_t *state, char *command) {
     char filename[MAX_PATH];
     long long filesize;
     
-    /* Check access control */
+    
     char *access_error = role_based_access_control("UPLOAD", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
         return;
     }
     
-    /* Parse command: UPLOAD <filename> <filesize> */
+    
     if (sscanf(command, "UPLOAD %s %lld", filename, &filesize) != 2) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Syntax error");
         return;
     }
     
-    /* Validate filesize */
+    
     if (filesize <= 0) {
         tcp_send(state->sockfd, "300");
         write_log_detailed(state->client_addr, command, "-ERR Invalid file size");
         return;
     }
     
-    /* Build filepath in group folder */
+    
     char group_folder[MAX_PATH];
     get_group_folder_path(state->user_group_id, group_folder, sizeof(group_folder));
     
     char filepath[MAX_PATH];
     snprintf(filepath, sizeof(filepath), "%s/%s", group_folder, filename);
     
-    /* Check if name conflicts with existing directory */
-    struct stat st;
-    if (stat(filepath, &st) == 0 && S_ISDIR(st.st_mode)) {
-        tcp_send(state->sockfd, "503");
-        write_log_detailed(state->client_addr, command, "-ERR Filename conflicts with folder");
-        return;
-    }
+
     
     /* Send ready signal */
     tcp_send(state->sockfd, "141");
     
-    /* Receive file content with file lock */
+    
     int ret = receive_file_content(state->sockfd, state, filepath, filesize);
     
     if (ret == 0) {
@@ -134,7 +128,7 @@ void handle_upload(conn_state_t *state, char *command) {
 void handle_download(conn_state_t *state, char *command) {
     char filename[MAX_PATH];
     
-    /* Check access control */
+    
     char *access_error = role_based_access_control("DOWNLOAD", state);
     if (access_error != NULL) {
         tcp_send(state->sockfd, access_error);
@@ -167,12 +161,6 @@ void handle_download(conn_state_t *state, char *command) {
     if (filesize == -2) {
         tcp_send(state->sockfd, "504");
         write_log_detailed(state->client_addr, command, "-ERR Cannot download folder");
-        return;
-    }
-    
-    if (filesize == -3) {
-        tcp_send(state->sockfd, "500");
-        write_log_detailed(state->client_addr, command, "-ERR Not a regular file");
         return;
     }
     

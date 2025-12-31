@@ -1,4 +1,5 @@
 #include "common.h"
+#include <fcntl.h>
 
 /**
  * @function file_lock: Lock a file for reading or writing
@@ -33,11 +34,11 @@ int tcp_send(int sockfd, char *msg) {
     char buffer[BUFF_SIZE + 2];
     int len, total = 0, bytes_sent;
     
-    /* Add \r\n to message */
+
     snprintf(buffer, sizeof(buffer), "%s\r\n", msg);
     len = strlen(buffer);
     
-    /* Send all data */
+
     while (total < len) {
         bytes_sent = send(sockfd, buffer + total, len - total, 0);
         if (bytes_sent <= 0) {
@@ -61,10 +62,10 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
     int bytes_received, i;
     
     while (1) {
-        /* Check if we have \r\n in recv_buffer */
+
         for (i = 0; i < state->buffer_pos - 1; i++) {
             if (state->recv_buffer[i] == '\r' && state->recv_buffer[i + 1] == '\n') {
-                /* Found complete message */
+
                 int msg_len = i;
                 if (msg_len >= max_len) {
                     msg_len = max_len - 1;
@@ -73,7 +74,7 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
                 memcpy(buffer, state->recv_buffer, msg_len);
                 buffer[msg_len] = '\0';
                 
-                /* Remove message from buffer */
+
                 state->buffer_pos -= (i + 2);
                 memmove(state->recv_buffer, state->recv_buffer + i + 2, state->buffer_pos);
                 
@@ -81,9 +82,9 @@ int tcp_receive(int sockfd, conn_state_t *state, char *buffer, int max_len) {
             }
         }
         
-        /* Receive more data */
+
         if (state->buffer_pos >= BUFF_SIZE - 1) {
-            return -1; /* Buffer full */
+            return -1;
         }
         
         bytes_received = recv(sockfd, state->recv_buffer + state->buffer_pos, 
@@ -127,7 +128,7 @@ int send_all(int sockfd, const void *buffer, int length) {
 /**
  * @function get_file_size: Get size of a file
  * @param filename: Path to file
- * @return: File size in bytes, -1 if not exist, -2 if directory, -3 if other type
+ * @return: File size in bytes, -1 if not exist, -2 if directory
  **/
 long long get_file_size(const char *filename) {
     struct stat st;
@@ -140,7 +141,7 @@ long long get_file_size(const char *filename) {
         if (S_ISDIR(st.st_mode)) {
             return -2;
         }
-        return -3; /* Other file types (symlink, device, etc.) */
+
     }
     return -1; /* File does not exist or cannot access */
 }
@@ -177,7 +178,7 @@ int send_file_content(int sockfd, const char *filepath) {
         }
     }
     
-    /* Unlock file */
+
     file_lock(fd, F_UNLCK);
     fclose(fp);
     return 0;
@@ -200,7 +201,7 @@ int receive_file_content(int sockfd, conn_state_t *state, const char *filepath, 
 
     int fd = fileno(fp);
     
-    /* Lock file for writing */
+    
     if (file_lock(fd, F_WRLCK) == -1) {
         fclose(fp);
         return -1;
@@ -208,7 +209,7 @@ int receive_file_content(int sockfd, conn_state_t *state, const char *filepath, 
 
     long long total_received = 0;
     
-    /* First, write any data already in recv_buffer */
+    
     if (state->buffer_pos > 0) {
         long long to_write = state->buffer_pos;
         
@@ -226,7 +227,7 @@ int receive_file_content(int sockfd, conn_state_t *state, const char *filepath, 
         state->buffer_pos = remaining;
     }
 
-    /* Receive remaining file data */
+    
     char file_buf[BUFF_SIZE];
     int n;
     
@@ -247,7 +248,7 @@ int receive_file_content(int sockfd, conn_state_t *state, const char *filepath, 
         total_received += n;
     }
 
-    /* Unlock file */
+    
     file_lock(fd, F_UNLCK);
     fclose(fp);
     printf("File saved: %s (%lld bytes)\n", filepath, total_received);

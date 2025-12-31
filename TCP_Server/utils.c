@@ -211,25 +211,6 @@ void save_invites() {
     fclose(f);
 }
 
-/* ==================== UTILITY FUNCTIONS ==================== */
-
-/**
- * @function write_log: Write a simple log message to server_log.txt
- * @param message: Log message to write
- * @return: None
- **/
-void write_log(const char *message) {
-    FILE *f = fopen("logs/server_log.txt", "a");
-    if (f == NULL) return;
-    
-    time_t now = time(NULL);
-    char *time_str = ctime(&now);
-    time_str[strlen(time_str) - 1] = '\0'; /* Remove newline */
-    
-    fprintf(f, "[%s] %s\n", time_str, message);
-    fclose(f);
-}
-
 /**
  * @function get_log_filename: Generate log filename based on current date
  * @param filename: Buffer to store the filename

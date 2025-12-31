@@ -26,6 +26,9 @@ int main(int argc, char *argv[]) {
     strcpy(ip_addr, argv[1]);
     port = atoi(argv[2]);
     
+    /* Create Downloads folder if not exists */
+    mkdir("Downloads", 0755);
+    
     /* Create socket */
     if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket() error");

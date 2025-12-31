@@ -106,7 +106,7 @@ int send_all(int sockfd, const void *buffer, int length) {
 /**
  * @function get_file_size: Get size of a file
  * @param filename: Path to file
- * @return: File size in bytes, -1 if not exist, -2 if directory, -3 if other type
+ * @return: File size in bytes, -1 if not exist, -2 if directory
  **/
 long long get_file_size(const char *filename) {
     struct stat st;
@@ -119,7 +119,7 @@ long long get_file_size(const char *filename) {
         if (S_ISDIR(st.st_mode)) {
             return -2;
         }
-        return -3; /* Other file types */
+        
     }
     return -1; /* File does not exist */
 }
@@ -141,7 +141,7 @@ int receive_file_content_client(int sockfd, conn_state_t *state, const char *fil
 
     long long total_received = 0;
     
-    /* First, write any data already in recv_buffer */
+    
     if (state->buffer_pos > 0) {
         long long to_write = state->buffer_pos;
         

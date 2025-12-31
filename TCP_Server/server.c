@@ -149,24 +149,16 @@ int main(int argc, char *argv[]) {
     load_invites();
     
     /* Create necessary directories if not exist */
-    mkdir("data", 0777);
-    mkdir("groups", 0777);
-    mkdir("logs", 0777);
+    mkdir("data", 0755);
+    mkdir("groups", 0755);
+    mkdir("logs", 0755);
     
     /* Create socket */
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
         perror("socket() error");
         return 1;
     }
-    
-    /* Set socket options to reuse address */
-    int opt = 1;
-    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1) {
-        perror("setsockopt() error");
-        close(listenfd);
-        return 1;
-    }
-    
+        
     /* Bind */
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;

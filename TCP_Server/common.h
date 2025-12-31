@@ -17,7 +17,7 @@
 
 /* ==================== CONSTANTS ==================== */
 
-#define BUFF_SIZE 8192
+#define BUFF_SIZE 65536
 #define MAX_ACCOUNTS 100
 #define MAX_GROUPS 50
 #define MAX_REQUESTS 200

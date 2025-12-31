@@ -1,7 +1,7 @@
 tungbt 1 2
 admin 1 1
 ductq 0 -1
-lymuc lymuc 1
+lymuc lymuc 3
 lymuc2 lymuc2 3
 Phuc Phuc -1
 Phong 1 1
